@@ -3,9 +3,11 @@ CMAKE_MINIMUM_REQUIRED(VERSION 2.4)
 PROJECT (PSF-LoginServer-Launcher)
 
 SET(PSFLSL_HEADERS
+  include/psflsl/registry.h
 )
 
 SET(PSFLSL_SOURCES
+  src/registry.cpp
   src/main.cpp
 )
 
