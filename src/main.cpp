@@ -10,6 +10,13 @@
 
 #include <windows.h>
 
+/*
+= FIXME: windows registry virtualization =
+https://stackoverflow.com/questions/252297/why-is-regopenkeyex-returning-error-code-2-on-vista-64bit/291067#291067
+  Note that you should not rely on the key being called "Wow6432Node"
+  Access the other registry view using the flags to RegOpenKeyEx instead
+*/
+
 #define PSFLSL_ERR_NO_CLEAN(THE_R) do { r = (THE_R); goto noclean; } while(0)
 #define PSFLSL_ERR_CLEAN(THE_R) do { r = (THE_R); goto clean; } while(0)
 #define PSFLSL_GOTO_CLEAN() do { goto clean; } while(0)
@@ -115,6 +122,30 @@ int psflsl_jvmdll_get_value(
 
 	if (oHaveValue)
 		*oHaveValue = HaveValue;
+
+clean:
+
+	return r;
+}
+
+int psflsl_jvmdll_get_key_hklm_opt(
+	const char *JreKeyName,
+	HKEY *oJreKeyOpt)
+{
+	int r = 0;
+
+	LONG Ret = 0;
+	HKEY JreKey = NULL;
+
+	Ret = RegOpenKeyEx(HKEY_LOCAL_MACHINE, JreKeyName, 0, KEY_READ, &JreKey);
+	if (Ret == ERROR_FILE_NOT_FOUND)
+		PSFLSL_ERR_NO_CLEAN(0);
+	else if (Ret != ERROR_SUCCESS)
+		PSFLSL_ERR_CLEAN(1);
+
+noclean:
+	if (oJreKeyOpt)
+		*oJreKeyOpt = JreKey;
 
 clean:
 
@@ -240,20 +271,24 @@ clean:
 	return r;
 }
 
-int psflsl_jvmdll_check(
+int psflsl_jvmdll_check_jrekeyname(
+	const char *JreKeyName,
 	char *JvmDllPathBuf,
 	size_t JvmDllPathSize,
-	size_t *oLenJvmDllPath)
+	size_t *oLenJvmDllPath,
+	bool *oHaveValue)
 {
 	int r = 0;
 
-	const char JreKeyName[] = "Software\\Wow6432Node\\JavaSoft\\Java Runtime Environment";
 	HKEY JreKey = NULL;
 
 	bool HaveValue = false;
 
-	if (ERROR_SUCCESS != RegOpenKeyEx(HKEY_LOCAL_MACHINE, JreKeyName, 0, KEY_READ, &JreKey))
-		PSFLSL_ERR_CLEAN(1);
+	if (!!(r = psflsl_jvmdll_get_key_hklm_opt(JreKeyName, &JreKey)))
+		PSFLSL_GOTO_CLEAN();
+
+	if (!JreKey)
+		PSFLSL_ERR_NO_CLEAN(0);
 
 	if (!!(r = psflsl_jvmdll_check_using_current_version(
 		JreKey,
@@ -263,22 +298,67 @@ int psflsl_jvmdll_check(
 		PSFLSL_GOTO_CLEAN();
 	}
 
-	if (!HaveValue) {
-		if (!!(r = psflsl_jvmdll_check_using_enumerate_and_guess(
-			JreKey,
-			JvmDllPathBuf, JvmDllPathSize, oLenJvmDllPath,
-			&HaveValue)))
-		{
-			PSFLSL_GOTO_CLEAN();
-		}
+	if (HaveValue)
+		PSFLSL_ERR_NO_CLEAN(0);
 
-		if (!HaveValue)
-			PSFLSL_ERR_CLEAN(1);
+	if (!!(r = psflsl_jvmdll_check_using_enumerate_and_guess(
+		JreKey,
+		JvmDllPathBuf, JvmDllPathSize, oLenJvmDllPath,
+		&HaveValue)))
+	{
+		PSFLSL_GOTO_CLEAN();
 	}
+
+noclean:
+	if (oHaveValue)
+		*oHaveValue = HaveValue;
 
 clean:
 	if (JreKey)
 		RegCloseKey(JreKey);
+
+	return r;
+}
+
+int psflsl_jvmdll_check(
+	char *JvmDllPathBuf,
+	size_t JvmDllPathSize,
+	size_t *LenJvmDllPath,
+	bool *oHaveValue)
+{
+	int r = 0;
+
+	const char JreKeyNameRegular[] = "Software\\JavaSoft\\Java Runtime Environment";
+	const char JreKeyNameWow[] = "Software\\Wow6432Node\\JavaSoft\\Java Runtime Environment";
+
+	bool HaveValue = false;
+
+	if (!!(r = psflsl_jvmdll_check_jrekeyname(
+		JreKeyNameRegular,
+		JvmDllPathBuf,
+		JvmDllPathSize,
+		LenJvmDllPath,
+		&HaveValue)))
+	{
+		PSFLSL_GOTO_CLEAN();
+	}
+
+	if (! HaveValue) {
+		if (!!(r = psflsl_jvmdll_check_jrekeyname(
+			JreKeyNameWow,
+			JvmDllPathBuf,
+			JvmDllPathSize,
+			LenJvmDllPath,
+			&HaveValue)))
+		{
+			PSFLSL_GOTO_CLEAN();
+		}
+	}
+
+	if (oHaveValue)
+		*oHaveValue = HaveValue;
+
+clean:
 
 	return r;
 }
@@ -291,10 +371,10 @@ int main(int argc, char **argv)
 	size_t JvmDllPathSize = sizeof JvmDllPathBuf;
 	size_t LenJvmDllPath = 0;
 
-	if (!!(r = psflsl_jvmdll_check(JvmDllPathBuf, JvmDllPathSize, &LenJvmDllPath))) {
+	bool HaveJvmDllPath = 0;
+
+	if (!!(r = psflsl_jvmdll_check(JvmDllPathBuf, JvmDllPathSize, &LenJvmDllPath, &HaveJvmDllPath)))
 		assert(0);
-		return EXIT_FAILURE;
-	}
 
     return EXIT_SUCCESS;
 }
