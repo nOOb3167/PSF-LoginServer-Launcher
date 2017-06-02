@@ -17,6 +17,9 @@ https://msdn.microsoft.com/en-us/library/windows/desktop/aa384129(v=vs.85).aspx
 https://stackoverflow.com/questions/252297/why-is-regopenkeyex-returning-error-code-2-on-vista-64bit/291067#291067
 A 32-bit java install will create registry keys in the 32-bit registry view.
 Special flags passed to RegOpenKeyEx select 32-bit or 64-bit registry view.
+= cruft =
+//enum PsflslBitness Bitness = static_cast<enum PsflslBitness>(EXTERNAL_PSFLSL_ARCH_BITNESS);
+//enum PsflslBitness BitnessOther = Bitness == PSFLSL_BITNESS_32 ? PSFLSL_BITNESS_64 : PSFLSL_BITNESS_32;
 */
 
 static REGSAM psflsl_bitness_registry_view(enum PsflslBitness Bitness);
@@ -394,47 +397,40 @@ clean:
 }
 
 int psflsl_jvmdll_check(
+	size_t NumBitnessCheckOrder,
+	enum PsflslBitness *BitnessCheckOrder,
 	char *JvmDllPathBuf,
 	size_t JvmDllPathSize,
-	size_t *LenJvmDllPath,
-	bool *oHaveValue)
+	size_t *oLenJvmDllPath,
+	enum PsflslBitness *oHaveBitness)
 {
 	int r = 0;
 
-	enum PsflslBitness Bitness = static_cast<enum PsflslBitness>(EXTERNAL_PSFLSL_ARCH_BITNESS);
-	enum PsflslBitness BitnessOther = Bitness == PSFLSL_BITNESS_32 ? PSFLSL_BITNESS_64 : PSFLSL_BITNESS_32;
-
 	const char JreKeyName[] = PSFLSL_JREKEY_NAME_STR;
 
-	bool HaveValue = false;
-	bool HaveValueOther = false;
+	enum PsflslBitness HaveBitness = PSFLSL_BITNESS_NONE;
 
-	if (!!(r = psflsl_jvmdll_check_jrekeyname(
-		Bitness,
-		JreKeyName,
-		JvmDllPathBuf,
-		JvmDllPathSize,
-		LenJvmDllPath,
-		&HaveValue)))
-	{
-		PSFLSL_GOTO_CLEAN();
-	}
-
-	if (! HaveValue) {
+	for (size_t i = 0; i < NumBitnessCheckOrder; i++) {
+		bool HaveValue = false;
 		if (!!(r = psflsl_jvmdll_check_jrekeyname(
-			BitnessOther,
+			BitnessCheckOrder[i],
 			JreKeyName,
 			JvmDllPathBuf,
 			JvmDllPathSize,
-			LenJvmDllPath,
-			&HaveValueOther)))
+			oLenJvmDllPath,
+			&HaveValue)))
 		{
 			PSFLSL_GOTO_CLEAN();
 		}
+
+		if (HaveValue) {
+			HaveBitness = BitnessCheckOrder[i];
+			break;
+		}
 	}
 
-	if (oHaveValue)
-		*oHaveValue = HaveValue || HaveValueOther;
+	if (oHaveBitness)
+		*oHaveBitness = HaveBitness;
 
 clean:
 

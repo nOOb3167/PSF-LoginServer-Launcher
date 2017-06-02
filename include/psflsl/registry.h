@@ -11,6 +11,7 @@
 
 enum PsflslBitness
 {
+	PSFLSL_BITNESS_NONE = 0x7FFFFFFF,
 	PSFLSL_BITNESS_32 = 32,
 	PSFLSL_BITNESS_64 = 64,
 };
@@ -23,9 +24,11 @@ int psflsl_jvmdll_check_jrekeyname(
 	size_t *oLenJvmDllPath,
 	bool *oHaveValue);
 int psflsl_jvmdll_check(
+	size_t NumBitnessCheckOrder,
+	enum PsflslBitness *BitnessCheckOrder,
 	char *JvmDllPathBuf,
 	size_t JvmDllPathSize,
-	size_t *LenJvmDllPath,
-	bool *oHaveValue);
+	size_t *oLenJvmDllPath,
+	enum PsflslBitness *oHaveBitness);
 
 #endif /* _PSFLSL_REGISTRY_H_ */

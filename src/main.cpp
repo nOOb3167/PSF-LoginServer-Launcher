@@ -21,8 +21,16 @@ int main(int argc, char **argv)
 
 	bool HaveJvmDllPath = 0;
 
-	if (!!(r = psflsl_jvmdll_check(JvmDllPathBuf, JvmDllPathSize, &LenJvmDllPath, &HaveJvmDllPath)))
+	enum PsflslBitness BitnessCheckOrder[2] = { PSFLSL_BITNESS_64, PSFLSL_BITNESS_32 };
+	enum PsflslBitness BitnessHave = PSFLSL_BITNESS_NONE;
+
+	if (!!(r = psflsl_jvmdll_check(
+		sizeof BitnessCheckOrder / sizeof *BitnessCheckOrder, BitnessCheckOrder,
+		JvmDllPathBuf, JvmDllPathSize, &LenJvmDllPath,
+		&BitnessHave)))
+	{
 		assert(0);
+	}
 
 	HMODULE jvmDll = LoadLibrary(EXTERNAL_PSFLSL_HARDCODED_JVMDLL_FILEPATH);
 	assert(jvmDll);
