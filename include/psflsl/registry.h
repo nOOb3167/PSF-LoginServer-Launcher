@@ -7,10 +7,16 @@
 #define PSFLSL_ERR_CLEAN(THE_R) do { r = (THE_R); goto clean; } while(0)
 #define PSFLSL_GOTO_CLEAN() do { goto clean; } while(0)
 
-#define PSFLSL_JREKEY_NAME_REGULAR_STR "Software\\JavaSoft\\Java Runtime Environment"
-#define PSFLSL_JREKEY_NAME_WOW_STR     "Software\\Wow6432Node\\JavaSoft\\Java Runtime Environment"
+#define PSFLSL_JREKEY_NAME_STR "Software\\JavaSoft\\Java Runtime Environment"
+
+enum PsflslBitness
+{
+	PSFLSL_BITNESS_32 = 32,
+	PSFLSL_BITNESS_64 = 64,
+};
 
 int psflsl_jvmdll_check_jrekeyname(
+	enum PsflslBitness Bitness,
 	const char *JreKeyName,
 	char *JvmDllPathBuf,
 	size_t JvmDllPathSize,

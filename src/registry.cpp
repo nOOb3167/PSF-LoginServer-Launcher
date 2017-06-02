@@ -1,3 +1,4 @@
+#include <cassert>
 #include <cstddef>
 #include <cstring>
 
@@ -11,12 +12,14 @@
 #include <psflsl/registry.h>
 
 /*
-= FIXME: windows registry virtualization =
+= windows WOW64 registry redirection =
+https://msdn.microsoft.com/en-us/library/windows/desktop/aa384129(v=vs.85).aspx
 https://stackoverflow.com/questions/252297/why-is-regopenkeyex-returning-error-code-2-on-vista-64bit/291067#291067
-  Note that you should not rely on the key being called "Wow6432Node"
-  Access the other registry view using the flags to RegOpenKeyEx instead
+A 32-bit java install will create registry keys in the 32-bit registry view.
+Special flags passed to RegOpenKeyEx select 32-bit or 64-bit registry view.
 */
 
+static REGSAM psflsl_bitness_registry_view(enum PsflslBitness Bitness);
 static int psflsl_strtol_prefix(const char *Str, size_t LenStr, size_t *oVal);
 static int psflsl_jvmdll_get_value(
 	HKEY JreKey,
@@ -25,10 +28,17 @@ static int psflsl_jvmdll_get_value(
 	DWORD JreValSize,
 	DWORD *oLenJreVal,
 	bool *oHaveValue);
+static int psflsl_jvmdll_get_key_opt(
+	enum PsflslBitness Bitness,
+	HKEY Key,
+	const char *SubKeyName,
+	HKEY *oSubKeyOpt);
 static int psflsl_jvmdll_get_key_hklm_opt(
+	enum PsflslBitness Bitness,
 	const char *JreKeyName,
 	HKEY *oJreKeyOpt);
 static int psflsl_jvmdll_get_sub_value_runtime_lib(
+	enum PsflslBitness Bitness,
 	HKEY JreKey,
 	BYTE *SubValBuf,
 	DWORD LenSubVal,
@@ -37,6 +47,7 @@ static int psflsl_jvmdll_get_sub_value_runtime_lib(
 	DWORD *oLenLibVal,
 	bool *oHaveValue);
 static int psflsl_jvmdll_check_using_current_version(
+	enum PsflslBitness Bitness,
 	HKEY JreKey,
 	char *JvmDllPathBuf,
 	size_t JvmDllPathSize,
@@ -102,6 +113,19 @@ struct PsflslVersionComparator
 	}
 };
 
+REGSAM psflsl_bitness_registry_view(enum PsflslBitness Bitness)
+{
+	switch (Bitness) {
+	case PSFLSL_BITNESS_32:
+		return KEY_WOW64_32KEY;
+	case PSFLSL_BITNESS_64:
+		return KEY_WOW64_64KEY;
+	default:
+		assert(0);
+		return 0;
+	}
+}
+
 int psflsl_strtol_prefix(const char *Str, size_t LenStr, size_t *oVal)
 {
 	char *end = NULL;
@@ -156,31 +180,42 @@ clean:
 	return r;
 }
 
-int psflsl_jvmdll_get_key_hklm_opt(
-	const char *JreKeyName,
-	HKEY *oJreKeyOpt)
+int psflsl_jvmdll_get_key_opt(
+	enum PsflslBitness Bitness,
+	HKEY Key,
+	const char *SubKeyName,
+	HKEY *oSubKeyOpt)
 {
 	int r = 0;
 
 	LONG Ret = 0;
-	HKEY JreKey = NULL;
+	HKEY SubKey = NULL;
 
-	Ret = RegOpenKeyEx(HKEY_LOCAL_MACHINE, JreKeyName, 0, KEY_READ, &JreKey);
+	Ret = RegOpenKeyEx(Key, SubKeyName, 0, KEY_READ | psflsl_bitness_registry_view(Bitness), &SubKey);
 	if (Ret == ERROR_FILE_NOT_FOUND)
 		PSFLSL_ERR_NO_CLEAN(0);
 	else if (Ret != ERROR_SUCCESS)
 		PSFLSL_ERR_CLEAN(1);
 
 noclean:
-	if (oJreKeyOpt)
-		*oJreKeyOpt = JreKey;
+	if (oSubKeyOpt)
+		*oSubKeyOpt = SubKey;
 
 clean:
 
 	return r;
 }
 
+int psflsl_jvmdll_get_key_hklm_opt(
+	enum PsflslBitness Bitness,
+	const char *JreKeyName,
+	HKEY *oJreKeyOpt)
+{
+	return psflsl_jvmdll_get_key_opt(Bitness, HKEY_LOCAL_MACHINE, JreKeyName, oJreKeyOpt);
+}
+
 int psflsl_jvmdll_get_sub_value_runtime_lib(
+	enum PsflslBitness Bitness,
 	HKEY JreKey,
 	BYTE *SubValBuf,
 	DWORD LenSubVal,
@@ -195,8 +230,14 @@ int psflsl_jvmdll_get_sub_value_runtime_lib(
 
 	HKEY JreKeySub = NULL;
 
-	if (ERROR_SUCCESS != RegOpenKeyEx(JreKey, SubValBufStr, 0, KEY_READ, &JreKeySub))
-		PSFLSL_ERR_CLEAN(1);
+	if (!!(r = psflsl_jvmdll_get_key_opt(
+		Bitness,
+		JreKey,
+		SubValBufStr,
+		&JreKeySub)))
+	{
+		PSFLSL_GOTO_CLEAN();
+	}
 
 	if (!!(r = psflsl_jvmdll_get_value(
 		JreKeySub,
@@ -214,6 +255,7 @@ clean:
 }
 
 int psflsl_jvmdll_check_using_current_version(
+	enum PsflslBitness Bitness,
 	HKEY JreKey,
 	char *JvmDllPathBuf,
 	size_t JvmDllPathSize,
@@ -240,6 +282,7 @@ int psflsl_jvmdll_check_using_current_version(
 
 	if (HaveValueCurrentVersion) {
 		if (!!(r = psflsl_jvmdll_get_sub_value_runtime_lib(
+			Bitness,
 			JreKey,
 			SubValBuf, LenSubVal,
 			(PBYTE)JvmDllPathBuf, JvmDllPathSize, (PDWORD)&oLenJvmDllPath,
@@ -300,6 +343,7 @@ clean:
 }
 
 int psflsl_jvmdll_check_jrekeyname(
+	enum PsflslBitness Bitness,
 	const char *JreKeyName,
 	char *JvmDllPathBuf,
 	size_t JvmDllPathSize,
@@ -312,13 +356,14 @@ int psflsl_jvmdll_check_jrekeyname(
 
 	bool HaveValue = false;
 
-	if (!!(r = psflsl_jvmdll_get_key_hklm_opt(JreKeyName, &JreKey)))
+	if (!!(r = psflsl_jvmdll_get_key_hklm_opt(Bitness, JreKeyName, &JreKey)))
 		PSFLSL_GOTO_CLEAN();
 
 	if (!JreKey)
 		PSFLSL_ERR_NO_CLEAN(0);
 
 	if (!!(r = psflsl_jvmdll_check_using_current_version(
+		Bitness,
 		JreKey,
 		JvmDllPathBuf, JvmDllPathSize, oLenJvmDllPath,
 		&HaveValue)))
@@ -356,13 +401,17 @@ int psflsl_jvmdll_check(
 {
 	int r = 0;
 
-	const char JreKeyNameRegular[] = PSFLSL_JREKEY_NAME_REGULAR_STR;
-	const char JreKeyNameWow[] = PSFLSL_JREKEY_NAME_WOW_STR;
+	enum PsflslBitness Bitness = static_cast<enum PsflslBitness>(EXTERNAL_PSFLSL_ARCH_BITNESS);
+	enum PsflslBitness BitnessOther = Bitness == PSFLSL_BITNESS_32 ? PSFLSL_BITNESS_64 : PSFLSL_BITNESS_32;
+
+	const char JreKeyName[] = PSFLSL_JREKEY_NAME_STR;
 
 	bool HaveValue = false;
+	bool HaveValueOther = false;
 
 	if (!!(r = psflsl_jvmdll_check_jrekeyname(
-		JreKeyNameRegular,
+		Bitness,
+		JreKeyName,
 		JvmDllPathBuf,
 		JvmDllPathSize,
 		LenJvmDllPath,
@@ -373,18 +422,19 @@ int psflsl_jvmdll_check(
 
 	if (! HaveValue) {
 		if (!!(r = psflsl_jvmdll_check_jrekeyname(
-			JreKeyNameWow,
+			BitnessOther,
+			JreKeyName,
 			JvmDllPathBuf,
 			JvmDllPathSize,
 			LenJvmDllPath,
-			&HaveValue)))
+			&HaveValueOther)))
 		{
 			PSFLSL_GOTO_CLEAN();
 		}
 	}
 
 	if (oHaveValue)
-		*oHaveValue = HaveValue;
+		*oHaveValue = HaveValue || HaveValueOther;
 
 clean:
 
