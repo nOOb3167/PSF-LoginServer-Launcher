@@ -19,6 +19,8 @@ IF (NOT PSFLSL_JNI_HEADER_INCLUDE_DIR)
 ENDIF ()
 
 SET(PSFLSL_HEADERS
+  include/psflsl/misc.h
+  include/psflsl/runner.h
   include/psflsl/registry.h
 )
 
@@ -26,6 +28,8 @@ SET(PSFLSL_HARDCODED_JVMDLL_FILEPATH "" CACHE FILEPATH "FIXME:")
 SET(PSFLSL_HARDCODED_CLASS_PATH "" CACHE PATH "FIXME:")
 
 SET(PSFLSL_SOURCES
+  src/misc.cpp
+  src/runner.cpp
   src/registry.cpp
   src/main.cpp
 )
@@ -49,7 +53,7 @@ TARGET_INCLUDE_DIRECTORIES(PSF-LoginServer-Launcher
 
 SET_TARGET_PROPERTIES(PSF-LoginServer-Launcher
   PROPERTIES
-  SUFFIX "_x${PSFLSL_ARCH_BITNESS}"
+  OUTPUT_NAME "PSF-LoginServer-Launcher_x${PSFLSL_ARCH_BITNESS}"
 )
 
 INSTALL(TARGETS PSF-LoginServer-Launcher

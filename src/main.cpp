@@ -1,72 +1,57 @@
 #include <cassert>
 #include <cstdlib>
 #include <cstddef>
+#include <cstring>
 
+#include <psflsl/misc.h>
 #include <psflsl/registry.h>
-
-#include <jni.h>
-#include <windows.h>
-
-/* http://docs.oracle.com/javase/7/docs/technotes/guides/jni/spec/jniTOC.html */
-
-typedef jint (JNICALL *CreateJVMFunc)(JavaVM **pvm, void **penv, void *args);
+#include <psflsl/runner.h>
 
 int main(int argc, char **argv)
 {
 	int r = 0;
 
-	char JvmDllPathBuf[512] = {};
-	size_t JvmDllPathSize = sizeof JvmDllPathBuf;
-	size_t LenJvmDllPath = 0;
-
-	bool HaveJvmDllPath = 0;
-
-	enum PsflslBitness BitnessCheckOrder[2] = { PSFLSL_BITNESS_64, PSFLSL_BITNESS_32 };
+	enum PsflslBitness BitnessCheckOrder[2] = { psflsl_bitness_current(), psflsl_bitness_other(psflsl_bitness_current()) };
 	enum PsflslBitness BitnessHave = PSFLSL_BITNESS_NONE;
 
-	if (!!(r = psflsl_jvmdll_check(
-		sizeof BitnessCheckOrder / sizeof *BitnessCheckOrder, BitnessCheckOrder,
-		JvmDllPathBuf, JvmDllPathSize, &LenJvmDllPath,
-		&BitnessHave)))
-	{
-		assert(0);
+	if (argc > 1 && strcmp("--forked", argv[1]) == 0) {
+
+		if (! (argc > 2))
+			PSFLSL_GOTO_CLEAN();
+
+		if (!!(r = psflsl_runner_run(
+			psflsl_bitness_current(),
+			psflsl_bitness_current(),
+			argv[2], strlen(argv[2]))))
+		{
+			PSFLSL_GOTO_CLEAN();
+		}
+	}
+	else {
+		char JvmDllPathBuf[512] = {};
+		size_t JvmDllPathSize = sizeof JvmDllPathBuf;
+		size_t LenJvmDllPath = 0;
+
+		if (!!(r = psflsl_jvmdll_check(
+			sizeof BitnessCheckOrder / sizeof *BitnessCheckOrder, BitnessCheckOrder,
+			JvmDllPathBuf, JvmDllPathSize, &LenJvmDllPath,
+			&BitnessHave)))
+		{
+			PSFLSL_GOTO_CLEAN();
+		}
+
+		if (!!(r = psflsl_runner_run_or_fork(
+			psflsl_bitness_current(),
+			BitnessHave,
+			JvmDllPathBuf, LenJvmDllPath)))
+		{
+			PSFLSL_GOTO_CLEAN();
+		}
 	}
 
-	HMODULE jvmDll = LoadLibrary(EXTERNAL_PSFLSL_HARDCODED_JVMDLL_FILEPATH);
-	assert(jvmDll);
-	CreateJVMFunc CreateJVM = (CreateJVMFunc) GetProcAddress(jvmDll, "JNI_CreateJavaVM");
-	assert(CreateJVM);
-
-	/* http://docs.oracle.com/javase/7/docs/technotes/guides/jni/spec/invocation.html
-	     see about extraInfo hooks (exit, abort) */
-	// FIXME: https://docs.oracle.com/javase/tutorial/essential/environment/sysprop.html java.class.path platform-specific separator
-	JavaVMOption vmOpts[] = {
-		{ "-Djava.class.path=" EXTERNAL_PSFLSL_HARDCODED_CLASS_PATH, NULL },
-	};
-
-	JavaVM *jvm = NULL;
-	JNIEnv *env = NULL;
-	JavaVMInitArgs vmArgs = {};
-	vmArgs.version = JNI_VERSION_1_8;
-	vmArgs.nOptions = sizeof vmOpts / sizeof *vmOpts;
-	vmArgs.options = vmOpts;
-	vmArgs.ignoreUnrecognized = false;
-
-	if (JNI_OK != CreateJVM(&jvm, (void **)&env, &vmArgs))
+clean:
+	if (!!r)
 		assert(0);
 
-	jclass mainClass = env->functions->FindClass(env, "Main");
-	assert(mainClass);
-	jmethodID mainMethod = env->functions->GetStaticMethodID(env, mainClass, "main", "([Ljava/lang/String;)V");
-	env->functions->CallStaticVoidMethod(env, mainClass, mainMethod, NULL);
-	assert(! env->functions->ExceptionCheck(env));
-
-clean:
-	if (jvm)
-		if (JNI_OK != jvm->functions->DestroyJavaVM(jvm))
-			assert(0);
-	if (jvmDll)
-		FreeLibrary(jvmDll);
-
-    return EXIT_SUCCESS;
+    return !!r ? EXIT_FAILURE : EXIT_SUCCESS;
 }

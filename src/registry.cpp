@@ -9,6 +9,7 @@
 
 #include <windows.h>
 
+#include <psflsl/misc.h>
 #include <psflsl/registry.h>
 
 /*
@@ -17,9 +18,6 @@ https://msdn.microsoft.com/en-us/library/windows/desktop/aa384129(v=vs.85).aspx
 https://stackoverflow.com/questions/252297/why-is-regopenkeyex-returning-error-code-2-on-vista-64bit/291067#291067
 A 32-bit java install will create registry keys in the 32-bit registry view.
 Special flags passed to RegOpenKeyEx select 32-bit or 64-bit registry view.
-= cruft =
-//enum PsflslBitness Bitness = static_cast<enum PsflslBitness>(EXTERNAL_PSFLSL_ARCH_BITNESS);
-//enum PsflslBitness BitnessOther = Bitness == PSFLSL_BITNESS_32 ? PSFLSL_BITNESS_64 : PSFLSL_BITNESS_32;
 */
 
 static REGSAM psflsl_bitness_registry_view(enum PsflslBitness Bitness);
@@ -116,6 +114,16 @@ struct PsflslVersionComparator
 	}
 };
 
+enum PsflslBitness psflsl_bitness_current()
+{
+	return static_cast<enum PsflslBitness>(EXTERNAL_PSFLSL_ARCH_BITNESS);
+}
+
+enum PsflslBitness psflsl_bitness_other(enum PsflslBitness Bitness)
+{
+	return Bitness == PSFLSL_BITNESS_32 ? PSFLSL_BITNESS_64 : PSFLSL_BITNESS_32;
+}
+
 REGSAM psflsl_bitness_registry_view(enum PsflslBitness Bitness)
 {
 	switch (Bitness) {
@@ -127,6 +135,24 @@ REGSAM psflsl_bitness_registry_view(enum PsflslBitness Bitness)
 		assert(0);
 		return 0;
 	}
+}
+
+int psflsl_bitness_suffix_compose(
+	enum PsflslBitness Bitness,
+	const char *PreBuf, size_t LenPre,
+	const char *PostBuf, size_t LenPost,
+	char *ioSufBuf, size_t SufSize, size_t *oLenSuf)
+{
+	unsigned long long ullBitness = Bitness;
+	std::stringstream ss;
+	ss << std::string(PreBuf, LenPre) << ullBitness << std::string(PostBuf, LenPost);
+	std::string strBitness = ss.str();
+	if (SufSize < strBitness.size() + 1)
+		return 1;
+	memcpy(ioSufBuf, strBitness.data(), strBitness.size());
+	memset(ioSufBuf + strBitness.size(), '\0', 1);
+	*oLenSuf = strBitness.size();
+	return 0;
 }
 
 int psflsl_strtol_prefix(const char *Str, size_t LenStr, size_t *oVal)
@@ -157,23 +183,32 @@ int psflsl_jvmdll_get_value(
 {
 	int r = 0;
 
-	bool HaveValue = true;
+	bool HaveValue = false;
 	LONG Ret = 0;
 
 	DWORD Tmp = JreValSize;
 
 	Ret = RegQueryValueEx(JreKey, ValueNameStr, NULL, NULL, ioJreValBuf, &Tmp);
 	if (Ret == ERROR_FILE_NOT_FOUND)
-		HaveValue = false;
+		PSFLSL_ERR_NO_CLEAN(0);
 	else if (Ret != ERROR_SUCCESS)
 		PSFLSL_ERR_CLEAN(1);
 
+	HaveValue = true;
+
 	if (!(Tmp < JreValSize))
 		PSFLSL_ERR_CLEAN(1);
-	ioJreValBuf[Tmp] = '\0';
+	
+	/* MSDN says RegQueryValueEx may return a buffer without one-past null element.
+	     it may also return buffer with embedded null as the last element (rofl).
+		 get rid of possible embedded trailing nulls, then insert null one-past the end. */
+	while (ioJreValBuf[--Tmp] == '\0') {}
+	ioJreValBuf[++Tmp] = '\0';
+
+noclean:
 
 	if (oLenJreVal)
-		*oLenJreVal = Tmp;
+		*oLenJreVal = HaveValue ? Tmp : 0;
 
 	if (oHaveValue)
 		*oHaveValue = HaveValue;
@@ -274,6 +309,8 @@ int psflsl_jvmdll_check_using_current_version(
 	bool HaveValueCurrentVersion = false;
 	bool HaveValueRuntimeLib = false;
 
+	DWORD dwLenJvmDllPath = 0;
+
 	if (!!(r = psflsl_jvmdll_get_value(
 		JreKey,
 		"CurrentVersion",
@@ -288,12 +325,15 @@ int psflsl_jvmdll_check_using_current_version(
 			Bitness,
 			JreKey,
 			SubValBuf, LenSubVal,
-			(PBYTE)JvmDllPathBuf, JvmDllPathSize, (PDWORD)&oLenJvmDllPath,
+			(PBYTE)JvmDllPathBuf, JvmDllPathSize, &dwLenJvmDllPath,
 			&HaveValueRuntimeLib)))
 		{
 			PSFLSL_GOTO_CLEAN();
 		}
 	}
+
+	if (oLenJvmDllPath)
+		*oLenJvmDllPath = dwLenJvmDllPath;
 
 	if (oHaveValue)
 		*oHaveValue = HaveValueRuntimeLib;
