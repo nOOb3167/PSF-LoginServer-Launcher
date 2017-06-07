@@ -9,9 +9,26 @@
 #include <sstream>
 
 #define FOUR_MB (4 * 1024 * 1024)
+#define SANITY_LONGEST_WRITE_NUM (16 * 1024 * 1024)
 
 #define HEADER_VAR_IDENTIFIER "PSFLSL_CONFIG_BUILTIN_HEXSTRING"
 #define DOUBLEQUOTE "\""
+
+static int hex_encode_char(const char RawChar, char *oHexChar1, char *oHexChar2);
+static int hex_encode_buf(
+	const char *DataBuf, int LenData,
+	char *ioHexDataBuf, int HexDataSize, int *oLenHexData);
+static int header_gen(
+	const char *HexSrcBuf, int LenHexSrc,
+	char *ioHdrSrcBuf, int HdrSrcSize, int *oLenHdrSrc);
+static int file_read_small(
+	const char *FName,
+	char *ioDataBuf, int DataSize, int *oLenData);
+static int file_write(
+	const char *FNameDst,
+	const char *HdrSrcBuf, int LenHdrSrc);
+static int file_copy_if_different(const char *FNameSrc, const char *FNameDst);
+int main(int argc, char **argv);
 
 int hex_encode_char(const char RawChar, char *oHexChar1, char *oHexChar2)
 {
@@ -25,70 +42,24 @@ int hex_encode_char(const char RawChar, char *oHexChar1, char *oHexChar2)
 
 int hex_encode_buf(
 	const char *DataBuf, int LenData,
-	char **oHexDataBuf, int *oLenHexData)
+	char *ioHexDataBuf, int HexDataSize, int *oLenHexData)
 {
 	int r = 0;
 
-	char *HexDataBuf = NULL;
-
-	if (! (HexDataBuf = (char *)malloc(2 * LenData + 1 /*zero*/)))
+	if (2 * LenData + 1 /*zero*/ > HexDataSize)
 		{ r = 1; goto clean; }
 
 	for (int i = 0; i < LenData; i++)
 		if (!!(r = hex_encode_char(
 			DataBuf[i],
-			&HexDataBuf[2*i+0],
-			&HexDataBuf[2*i+1])))
+			&ioHexDataBuf[2*i+0],
+			&ioHexDataBuf[2*i+1])))
 		{ r = 1; goto clean; }
 
-	memset(&HexDataBuf[2*LenData], '\0', 1);
-
-	if (oHexDataBuf)
-		*oHexDataBuf = HexDataBuf;
+	memset(&ioHexDataBuf[2*LenData], '\0', 1);
 
 	if (oLenHexData)
 		*oLenHexData = LenData * 2;
-
-clean:
-	if (!!r) {
-		if (HexDataBuf)
-			free(HexDataBuf);
-	}
-
-	return r;
-}
-
-int header_equals_extracted(
-	const char *DstDataBuf, int LenDstData,
-	const char *HexSrcBuf, int LenHexSrc,
-	int *oEqual)
-{
-	int r = 0;
-
-	int Equal = 0;
-
-	std::string data(DstDataBuf, LenDstData);
-	size_t idxHeaderVarIdentifier = data.find(HEADER_VAR_IDENTIFIER);
-	size_t idxDoubleQuote = data.find(DOUBLEQUOTE, idxHeaderVarIdentifier);
-	size_t idxDoubleQuoteClosing = std::string::npos;
-	std::string sub;
-
-	if (idxHeaderVarIdentifier == std::string::npos ||
-		idxDoubleQuote == std::string::npos)
-		{ r = 0; goto noclean; }
-
-	idxDoubleQuoteClosing = data.find(DOUBLEQUOTE, idxDoubleQuote + 1);
-
-	if (idxDoubleQuoteClosing == std::string::npos)
-		{ r = 0; goto noclean; }
-
-	sub = data.substr(idxDoubleQuote + 1, idxDoubleQuoteClosing - 1);
-
-	Equal = LenHexSrc == sub.size() && !memcmp(HexSrcBuf, sub.data(), LenHexSrc);
-
-noclean:
-	if (oEqual)
-		*oEqual = Equal;
 
 clean:
 
@@ -97,11 +68,9 @@ clean:
 
 int header_gen(
 	const char *HexSrcBuf, int LenHexSrc,
-	char **oDstDataBuf, int *oLenDstData)
+	char *ioHdrSrcBuf, int HdrSrcSize, int *oLenHdrSrc)
 {
 	int r = 0;
-
-	char *DstDataBuf = NULL;
 
 	std::stringstream ss;
 	std::string header;
@@ -113,150 +82,74 @@ int header_gen(
 
 	header = ss.str();
 
-	if (! (DstDataBuf = (char *) malloc(header.size() + 1)))
+	if (header.size() + 1 /*zero*/ > HdrSrcSize)
 		{ r = 1; goto clean; }
 
-	memmove(DstDataBuf, header.data(), header.size());
-	memset(DstDataBuf + header.size(), '\0', 1);
+	memmove(ioHdrSrcBuf, header.data(), header.size());
+	memset(ioHdrSrcBuf + header.size(), '\0', 1);
 
-	if (oDstDataBuf)
-		*oDstDataBuf = DstDataBuf;
-
-	if (oLenDstData)
-		*oLenDstData = header.size();
+	if (oLenHdrSrc)
+		*oLenHdrSrc = header.size();
 
 clean:
-	if (!!r) {
-		if (DstDataBuf)
-			free(DstDataBuf);
-	}
 
 	return r;
 }
 
-int file_read_small(const char *FName, int *oNumData, char **oData)
+int file_read_small(
+	const char *FName,
+	char *ioDataBuf, int DataSize, int *oLenData)
 {
 	int r = 0;
 
 	FILE *f = NULL;
-	char *data = NULL;
-	int offset = 0;
-	size_t cnt = 0;
+	int MaxReadWanted = DataSize - 1;
+	int Offset = 0;
+	size_t Cnt = 0;
 	
-	data = (char *) malloc(FOUR_MB);
-
 	if (!(f = fopen(FName, "rb")))
 		{ r = 1; goto clean; }
 
-	while (0 != (cnt = fread(&data[offset], 1, FOUR_MB - offset, f))) {
-		offset += cnt;
-		if (offset > FOUR_MB)
+	while (0 != (Cnt = fread(&ioDataBuf[Offset], 1, MaxReadWanted - Offset, f))) {
+		Offset += Cnt;
+		if (Offset > MaxReadWanted)
 			break;
 	}
 
 	if (ferror(f) || !feof(f))
 		{ r = 1; goto clean; }
 
-	if (oNumData)
-		*oNumData = offset;
+	memset(ioDataBuf + Offset, '\0', 1);
 
-	if (oData)
-		*oData = data;
+	if (oLenData)
+		*oLenData = Offset;
 
 clean:
-	if (!!r) {
-		if (data)
-			free(data);
-	}
-
 	if (f)
 		fclose(f);
 
 	return r;
 }
 
-int file_equal_pair(const char *FNameSrc, const char *FNameDst, int *oEqual)
+int file_write(
+	const char *FNameDst,
+	const char *HdrSrcBuf, int LenHdrSrc)
 {
 	int r = 0;
-
-	char *DataSrc = NULL;
-	int NumDataSrc = 0;
-	char *DataDst = NULL;
-	int NumDataDst = 0;
-
-	int Equal = 0;
-
-	char *HexSrcBuf = NULL;
-	int LenHexSrc = 0;
-
-	/* if reading either file fails - count them not equal */
-
-	if (!!(r = file_read_small(FNameSrc, &NumDataSrc, &DataSrc)))
-		{ r = 0; goto noclean; }
-
-	if (!!(r = file_read_small(FNameDst, &NumDataDst, &DataDst)))
-		{ r = 0; goto noclean; }
-
-	if (!!(r = hex_encode_buf(DataSrc, NumDataSrc, &HexSrcBuf, &LenHexSrc)))
-		{ r = 1; goto clean; }
-
-	if (!!(r = header_equals_extracted(
-		DataDst, NumDataDst,
-		HexSrcBuf, LenHexSrc,
-		&Equal)))
-		{ r = 1; goto clean; }
-
-noclean:
-
-	if (oEqual)
-		*oEqual = Equal;
-
-clean:
-	if (HexSrcBuf)
-		free(HexSrcBuf);
-	if (DataSrc)
-		free(DataSrc);
-	if (DataDst)
-		free(DataDst);
-
-	return r;
-}
-
-int file_copy(const char *FNameSrc, const char *FNameDst)
-{
-	int r = 0;
-
-	char *DataSrcBuf = NULL;
-	int LenDataSrc = 0;
-
-	char *HexSrcBuf = NULL;
-	int LenHexSrc = 0;
-
-	char *DataDstBuf = NULL;
-	int LenDataDst = 0;
 
 	FILE *f = NULL;
-	int offset = 0;
-	size_t cnt = 0;
-
-	if (!!(r = file_read_small(FNameSrc, &LenDataSrc, &DataSrcBuf)))
-		goto clean;
-
-	if (!!(r = hex_encode_buf(DataSrcBuf, LenDataSrc, &HexSrcBuf, &LenHexSrc)))
-		{ r = 1; goto clean; }
-
-	if (!!(r = header_gen(
-		HexSrcBuf, LenHexSrc,
-		&DataDstBuf, &LenDataDst)))
-		{ r = 1; goto clean; }
+	int Offset = 0;
+	size_t Cnt = 0;
 
 	if (!(f = fopen(FNameDst, "wb")))
 		{ r = 1; goto clean; }
 
-	while (0 != (cnt = fwrite(&DataDstBuf[offset], 1, LenDataDst - offset, f))) {
-		offset += cnt;
-		if (offset > LenDataSrc)
+	while (0 != (Cnt = fwrite(&HdrSrcBuf[Offset], 1, LenHdrSrc - Offset, f))) {
+		Offset += Cnt;
+		if (Offset > LenHdrSrc)
 			break;
+		if (Offset > SANITY_LONGEST_WRITE_NUM)
+			{ r = 1; goto clean; }
 	}
 
 	if (ferror(f))
@@ -265,12 +158,6 @@ int file_copy(const char *FNameSrc, const char *FNameDst)
 clean:
 	if (f)
 		fclose(f);
-	if (DataDstBuf)
-		free(DataDstBuf);
-	if (HexSrcBuf)
-		free(HexSrcBuf);
-	if (DataSrcBuf)
-		free(DataSrcBuf);
 
 	return r;
 }
@@ -279,19 +166,74 @@ int file_copy_if_different(const char *FNameSrc, const char *FNameDst)
 {
 	int r = 0;
 
-	char *DataSrc = NULL;
-	int NumDataSrc = 0;
+	int HaveSrc = false;
+	int HaveDst = false;
+
+	char *FileSrcBuf = NULL;
+	int LenFileSrc = 0;
+	char *FileDstBuf = NULL;
+	int LenFileDst = 0;
+
+	char *HexSrcBuf = NULL;
+	int LenHexSrc = 0;
+
+	char *HdrSrcBuf = NULL;
+	int LenHdrSrc = 0;
 
 	int Equal = 0;
+	int NeedWrite = 0;
 
-	if (!!(r = file_equal_pair(FNameSrc, FNameDst, &Equal)))
-		goto clean;
+	if (! (FileSrcBuf = (char *) malloc(FOUR_MB)))
+		{ r = 1; goto clean; }
 
-	if (! Equal)
-		if (!!(r = file_copy(FNameSrc, FNameDst)))
+	if (! (FileDstBuf = (char *) malloc(FOUR_MB)))
+		{ r = 1; goto clean; }
+
+	if (! (r = file_read_small(FNameSrc, FileSrcBuf, FOUR_MB, &LenFileSrc)))
+		HaveSrc = true;
+
+	if (! (r = file_read_small(FNameDst, FileDstBuf, FOUR_MB, &LenFileDst)))
+		HaveDst = true;
+
+	if (HaveSrc) {
+		if (! (HexSrcBuf = (char *) malloc(2 * FOUR_MB)))
+			{ r = 1; goto clean; }
+		if (! (HdrSrcBuf = (char *) malloc(3 * FOUR_MB)))
+			{ r = 1; goto clean; }
+
+		if (!!(r = hex_encode_buf(FileSrcBuf, LenFileSrc, HexSrcBuf, 2 * FOUR_MB, &LenHexSrc)))
+			{ r = 1; goto clean; }
+
+		if (!!(r = header_gen(
+			HexSrcBuf, LenHexSrc,
+			HdrSrcBuf, 3 * FOUR_MB, &LenHdrSrc)))
+			{ r = 1; goto clean; }
+	}
+
+	if (HaveDst) {
+		/* dummy */
+	}
+
+	/* if we had both - can check for equality */
+	if (HaveSrc && HaveDst)
+		Equal = LenHdrSrc == LenFileDst && !memcmp(HdrSrcBuf, FileDstBuf, LenHdrSrc);
+
+	/* write if have at least src - but no need if have both and are equal */
+	NeedWrite = HaveSrc && !Equal;
+
+	if (NeedWrite)
+		if (!!(r = file_write(FNameDst, HdrSrcBuf, LenHdrSrc)))
 			goto clean;
 
 clean:
+	if (HdrSrcBuf)
+		free(HdrSrcBuf);
+	if (HexSrcBuf)
+		free(HexSrcBuf);
+	if (FileDstBuf)
+		free(FileDstBuf);
+	if (FileSrcBuf)
+		free(FileSrcBuf);
 
 	return r;
 }
