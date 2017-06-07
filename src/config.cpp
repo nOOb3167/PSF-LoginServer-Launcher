@@ -14,6 +14,8 @@
 #include <psflsl/filesys.h>
 #include <psflsl/config.h>
 
+#include <PSF-LoginServer-Launcher-Config.h>
+
 #define PSFLSL_CONFIG_COMMON_VAR_UINT32_NONUCF(KEYVAL, COMVARS, NAME)                  \
 	{                                                                                  \
 		uint32_t Conf ## NAME = 0;                                                     \
@@ -54,6 +56,7 @@ struct PsflslConfMap
 int psflsl_config_char_from_string_alloc(const std::string &String, char **oStrBuf, size_t *oLenStr);
 
 size_t psflsl_config_decode_hex_char_(const char *pHexChar, size_t *oIsError);
+int psflsl_config_decode_hex(const std::string &BufferSwapped, std::string *oDecoded);
 int psflsl_config_decode_hex_pairwise_swapped(const std::string &BufferSwapped, std::string *oDecoded);
 
 int psflsl_config_key_ex(const PsflslConfMap *KeyVal, const char *Key, std::string *oVal);
@@ -128,13 +131,46 @@ size_t psflsl_config_decode_hex_char_(const char *pHexChar, size_t *oIsError)
 	return 0;
 }
 
+int psflsl_config_decode_hex(const std::string &BufferSwapped, std::string *oDecoded)
+{
+	int r = 0;
+
+	std::string Decoded(BufferSwapped.size() / 2, '\0');
+
+	std::string Buffer(BufferSwapped);
+
+	size_t IsError = 0;
+
+	/* one full byte is a hex pair of characters - better be divisible by two */
+
+	if (Buffer.size() % 2 != 0)
+	{ r = 1; goto clean; }
+
+	/* decode */
+
+	for (size_t i = 0; i < Buffer.size(); i += 2)
+		Decoded[i / 2] =
+		(psflsl_config_decode_hex_char_(&Buffer[i], &IsError) & 0xF) << 0 |
+		(psflsl_config_decode_hex_char_(&Buffer[i + 1], &IsError) & 0xF) << 4;
+
+	if (IsError)
+	{ r = 1; goto clean; }
+
+	if (oDecoded)
+		oDecoded->swap(Decoded);
+
+clean:
+
+	return r;
+}
+
 int psflsl_config_decode_hex_pairwise_swapped(const std::string &BufferSwapped, std::string *oDecoded)
 {
 	/* originally designed to decode string, as obtained by CMAKE's FILE(READ ... HEX) command.
 	*  because CMAKE is designed by web developers (ex same as have brought us Base64 encoding),
 	*  it will of course encode, say, 'G' (ASCII hex 0x47) as "47" instead of "74".
-	*  such that : DECODEDBYTE = (BITPATTERN(HEX[0]) << 8) + (BITPATTERN(HEX[1]) << 0)
-	*  instead of: DECODEDBYTE = (BITPATTERN(HEX[0]) << 0) + (BITPATTERN(HEX[1]) << 8)
+	*  such that : DECODEDBYTE = (BITPATTERN(HEX[0]) << 4) + (BITPATTERN(HEX[1]) << 0)
+	*  instead of: DECODEDBYTE = (BITPATTERN(HEX[0]) << 0) + (BITPATTERN(HEX[1]) << 4)
 	*  praise to the web industry for bringing us quality engineering once again. */
 
 	int r = 0;
@@ -406,10 +442,10 @@ int psflsl_config_read_builtin(PsflslConfMap **oKeyVal)
 {
 	int r = 0;
 
-	std::string BufferBuiltinConfig(EXTERNAL_PSFLSL_CONFIG_BUILTIN_HEXSTRING);
+	std::string BufferBuiltinConfig(PSFLSL_CONFIG_BUILTIN_HEXSTRING);
 	std::string DecodedConfig;
 
-	if (!!(r = psflsl_config_decode_hex_pairwise_swapped(BufferBuiltinConfig, &DecodedConfig)))
+	if (!!(r = psflsl_config_decode_hex(BufferBuiltinConfig, &DecodedConfig)))
 		PSFLSL_GOTO_CLEAN();
 
 	if (!!(r = psflsl_config_parse(

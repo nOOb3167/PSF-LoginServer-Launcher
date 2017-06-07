@@ -2,9 +2,13 @@ CMAKE_MINIMUM_REQUIRED(VERSION 2.4)
 
 PROJECT (PSF-LoginServer-Launcher)
 
+# use custom find module for Shlwapi
+
 LIST(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/Modules/")
 
 FIND_PACKAGE(Shlwapi REQUIRED)
+
+# infer bitness of compiler selected by cmake from native pointer size
 
 INCLUDE(CheckTypeSize)
 CHECK_TYPE_SIZE("void*" SIZEOF_VOID_P BUILTIN_TYPES_ONLY)
@@ -13,6 +17,8 @@ IF (SIZEOF_VOID_P EQUAL 8)
 ELSE ()
   SET(PSFLSL_ARCH_BITNESS 32)
 ENDIF ()
+
+# find the JNI headers - or use bundled
 
 FIND_PATH(PSFLSL_JNI_HEADER_INCLUDE_DIR
   NAMES jni.h
@@ -27,7 +33,7 @@ IF (NOT (PSFLSL_JNI_HEADER_INCLUDE_DIR AND PSFLSL_JNI_MD_HEADER_INCLUDE_DIR))
   MESSAGE(SEND_ERROR "jni.h not found")
 ENDIF ()
 
-FILE(READ "${CMAKE_CURRENT_SOURCE_DIR}/data/PSF-LoginServer-Launcher-Config.txt" EXTERNAL_PSFLSL_CONFIG_BUILTIN_HEXSTRING HEX)
+# create the Launcher and Config Header Generator targets - with sources
 
 SET(PSFLSL_HEADERS
   include/psflsl/config.h
@@ -53,31 +59,35 @@ ADD_EXECUTABLE(PSF-LoginServer-Launcher-ConfigHeaderGen
 ADD_EXECUTABLE(PSF-LoginServer-Launcher
   ${PSFLSL_HEADERS}
   ${PSFLSL_SOURCES}
-  PSF-LoginServer-Launcher-Config.txt
+  PSF-LoginServer-Launcher-Config.h
 )
+
+# Config Header Generator stuff
 
 ADD_CUSTOM_TARGET(PSF-Target-ConfigFile
   DEPENDS PSF-LoginServer-Launcher-Config.txt
 )
 
 ADD_CUSTOM_COMMAND(
-  OUTPUT PSF-LoginServer-Launcher-Config.txt
+  OUTPUT PSF-LoginServer-Launcher-Config.h
   DEPENDS PSF-LoginServer-Launcher-ConfigHeaderGen
           "${CMAKE_CURRENT_SOURCE_DIR}/data/PSF-LoginServer-Launcher-Config.txt"
   COMMAND PSF-LoginServer-Launcher-ConfigHeaderGen
     "${CMAKE_CURRENT_SOURCE_DIR}/data/PSF-LoginServer-Launcher-Config.txt"
-    "${CMAKE_CURRENT_BINARY_DIR}/PSF-LoginServer-Launcher-Config.txt"
+    "${CMAKE_CURRENT_BINARY_DIR}/PSF-LoginServer-Launcher-Config.h"
   COMMENT "Generating Launcher Config"
 )
 
 ADD_DEPENDENCIES(PSF-LoginServer-Launcher PSF-Target-ConfigFile)
 
+# target configuration stuff (gcc options such as -D, -I, -L, -o)
+
 TARGET_COMPILE_DEFINITIONS(PSF-LoginServer-Launcher
-  PRIVATE -DEXTERNAL_PSFLSL_CONFIG_BUILTIN_HEXSTRING="${EXTERNAL_PSFLSL_CONFIG_BUILTIN_HEXSTRING}"
   PRIVATE -DEXTERNAL_PSFLSL_ARCH_BITNESS=${PSFLSL_ARCH_BITNESS}
 )
   
 TARGET_INCLUDE_DIRECTORIES(PSF-LoginServer-Launcher
+  PRIVATE "${CMAKE_CURRENT_BINARY_DIR}"  # for Config Header Generator
   PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/include"
   PRIVATE "${PSFLSL_JNI_HEADER_INCLUDE_DIR}"
   PRIVATE "${PSFLSL_JNI_MD_HEADER_INCLUDE_DIR}"
@@ -90,6 +100,8 @@ SET_TARGET_PROPERTIES(PSF-LoginServer-Launcher
   OUTPUT_NAME "PSF-LoginServer-Launcher_x${PSFLSL_ARCH_BITNESS}"
 )
 
+# target install definition stuff
+
 INSTALL(TARGETS PSF-LoginServer-Launcher
   LIBRARY DESTINATION "lib"
   RUNTIME DESTINATION "bin"
@@ -97,6 +109,7 @@ INSTALL(TARGETS PSF-LoginServer-Launcher
 )
 
 # Visual Studio CMake generator specific stuff
+
 IF (MSVC)
     ## categorize files in project tab
     SOURCE_GROUP("Header Files" FILES ${PSFLSL_HEADERS})
