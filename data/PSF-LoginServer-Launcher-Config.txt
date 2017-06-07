@@ -1,0 +1,3 @@
+PSFLSL_CONF
+Hello=World
+ConfHardCodedClassPath=../lib/*

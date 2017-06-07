@@ -1,7 +1,7 @@
 #ifndef _PSFLSL_RUNNER_H_
 #define _PSFLSL_RUNNER_H_
 
-int psflsl_file_exist_ensure(const char *FileNameBuf, size_t LenFileName);
+int psflsl_win_file_exist_ensure(const char *FileNameBuf, size_t LenFileName);
 int psflsl_process_start(
 	const char *FileNameParentBuf, size_t LenFileNameParent,
 	const char *ParentCommandLineBuf, size_t LenParentCommandLine);
@@ -17,10 +17,12 @@ int psflsl_runner_fork_build_command_line(
 int psflsl_runner_run(
 	enum PsflslBitness BitnessCurrent,
 	enum PsflslBitness BitnessHave,
-	char *JvmDllPathBuf, size_t LenJvmDllPath);
+	char *JvmDllPathBuf, size_t LenJvmDllPath,
+	char *HardCodedClassPathBuf, size_t LenHardCodedClassPath);
 int psflsl_runner_run_or_fork(
 	enum PsflslBitness BitnessCurrent,
 	enum PsflslBitness BitnessHave,
-	char *JvmDllPathBuf, size_t LenJvmDllPath);
+	char *JvmDllPathBuf, size_t LenJvmDllPath,
+	char *HardCodedClassPathBuf, size_t LenHardCodedClassPath);
 
 #endif /* _PSFLSL_RUNNER_H_ */

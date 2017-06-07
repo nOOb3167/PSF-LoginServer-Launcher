@@ -1,3 +1,7 @@
+#ifdef _MSC_VER
+#define _CRT_SECURE_NO_WARNINGS
+#endif /* _MSC_VER */
+
 #include <cassert>
 #include <cstdlib>
 #include <cstddef>
@@ -6,6 +10,7 @@
 #include <windows.h>
 
 #include <psflsl/misc.h>
+#include <psflsl/filesys.h>
 #include <psflsl/registry.h>
 #include <psflsl/runner.h>
 
@@ -20,23 +25,6 @@ void psflsl_close_handle(HANDLE handle)
 	if (handle)
 		if (!CloseHandle(handle))
 			assert(0);
-}
-
-int psflsl_file_exist_ensure(const char *FileNameBuf, size_t LenFileName)
-{
-	int r = 0;
-
-	if (!!(r = psflsl_buf_ensure_haszero(FileNameBuf, LenFileName + 1)))
-		PSFLSL_GOTO_CLEAN();
-
-	/* https://blogs.msdn.microsoft.com/oldnewthing/20071023-00/?p=24713/ */
-	/* INVALID_FILE_ATTRIBUTES if file does not exist, apparently */
-	if (INVALID_FILE_ATTRIBUTES == GetFileAttributes(FileNameBuf))
-		PSFLSL_ERR_CLEAN(1);
-
-clean:
-
-	return r;
 }
 
 int psflsl_process_start(
@@ -65,7 +53,7 @@ int psflsl_process_start(
 	memcpy(CommandLineCopyBuf, ParentCommandLineBuf, LenParentCommandLine);
 	memset(CommandLineCopyBuf + LenParentCommandLine, '\0', 1);
 
-	if (!!(r = psflsl_file_exist_ensure(FileNameParentBuf, LenFileNameParent)))
+	if (!!(r = psflsl_win_file_exist_ensure(FileNameParentBuf, LenFileNameParent)))
 		PSFLSL_GOTO_CLEAN();
 
 	ZeroMemory(&si, sizeof si);
@@ -204,25 +192,48 @@ clean:
 int psflsl_runner_run(
 	enum PsflslBitness BitnessCurrent,
 	enum PsflslBitness BitnessHave,
-	char *JvmDllPathBuf, size_t LenJvmDllPath)
+	char *JvmDllPathBuf, size_t LenJvmDllPath,
+	char *HardCodedClassPathBuf, size_t LenHardCodedClassPath)
 {
 	int r = 0;
 
-	HMODULE jvmDll = LoadLibrary(JvmDllPathBuf);
-	assert(jvmDll);
-	CreateJVMFunc CreateJVM = (CreateJVMFunc)GetProcAddress(jvmDll, "JNI_CreateJavaVM");
-	assert(CreateJVM);
-
 	/* http://docs.oracle.com/javase/7/docs/technotes/guides/jni/spec/invocation.html
-	see about extraInfo hooks (exit, abort) */
-	// FIXME: https://docs.oracle.com/javase/tutorial/essential/environment/sysprop.html java.class.path platform-specific separator
-	JavaVMOption vmOpts[] = {
-		{ "-Djava.class.path=" EXTERNAL_PSFLSL_HARDCODED_CLASS_PATH, NULL },
-	};
+	   see about extraInfo hooks (exit, abort) */
+	/* NOTE: https://docs.oracle.com/javase/tutorial/essential/environment/sysprop.html
+	         java.class.path platform-specific separator */
+
+	char StrJavaClassPath[] = "-Djava.class.path=";
+	char VmOptJavaClassPathBuf[4096] = {};
+
+	HMODULE jvmDll = 0;
+	CreateJVMFunc CreateJVM = 0;
 
 	JavaVM *jvm = NULL;
 	JNIEnv *env = NULL;
 	JavaVMInitArgs vmArgs = {};
+	JavaVMOption vmOpts[1] = {};
+
+	jclass mainClass = NULL;
+	jmethodID mainMethod = NULL;
+
+	if (sizeof StrJavaClassPath + LenHardCodedClassPath > sizeof VmOptJavaClassPathBuf)
+		PSFLSL_ERR_CLEAN(1);
+
+	if (!!(r = psflsl_buf_ensure_haszero(HardCodedClassPathBuf, LenHardCodedClassPath + 1)))
+		PSFLSL_GOTO_CLEAN();
+
+	strncat(VmOptJavaClassPathBuf, StrJavaClassPath, sizeof StrJavaClassPath);
+	strncat(VmOptJavaClassPathBuf, HardCodedClassPathBuf, LenHardCodedClassPath);
+
+	if (!(jvmDll = LoadLibrary(JvmDllPathBuf)))
+		PSFLSL_ERR_CLEAN(1);
+
+	if (!(CreateJVM = (CreateJVMFunc)GetProcAddress(jvmDll, "JNI_CreateJavaVM")))
+		PSFLSL_ERR_CLEAN(1);
+
+	vmOpts[0].optionString = VmOptJavaClassPathBuf;
+	vmOpts[0].extraInfo = NULL;
+
 	vmArgs.version = JNI_VERSION_1_8;
 	vmArgs.nOptions = sizeof vmOpts / sizeof *vmOpts;
 	vmArgs.options = vmOpts;
@@ -231,11 +242,16 @@ int psflsl_runner_run(
 	if (JNI_OK != CreateJVM(&jvm, (void **)&env, &vmArgs))
 		assert(0);
 
-	jclass mainClass = env->functions->FindClass(env, "Main");
-	assert(mainClass);
-	jmethodID mainMethod = env->functions->GetStaticMethodID(env, mainClass, "main", "([Ljava/lang/String;)V");
+	if (!(mainClass = env->functions->FindClass(env, "Main")))
+		PSFLSL_ERR_CLEAN(1);
+	
+	if (!(mainMethod = env->functions->GetStaticMethodID(env, mainClass, "main", "([Ljava/lang/String;)V")))
+		PSFLSL_ERR_CLEAN(1);
+
 	env->functions->CallStaticVoidMethod(env, mainClass, mainMethod, NULL);
-	assert(! env->functions->ExceptionCheck(env));
+
+	if (env->functions->ExceptionCheck(env))
+		PSFLSL_ERR_CLEAN(1);
 
 clean:
 	if (jvm)
@@ -306,16 +322,26 @@ clean:
 int psflsl_runner_run_or_fork(
 	enum PsflslBitness BitnessCurrent,
 	enum PsflslBitness BitnessHave,
-	char *JvmDllPathBuf, size_t LenJvmDllPath)
+	char *JvmDllPathBuf, size_t LenJvmDllPath,
+	char *HardCodedClassPathBuf, size_t LenHardCodedClassPath)
 {
 	int r = 0;
 
 	if (BitnessCurrent == BitnessHave) {
-		if (!!(r = psflsl_runner_run(BitnessCurrent, BitnessHave, JvmDllPathBuf, LenJvmDllPath)))
+		if (!!(r = psflsl_runner_run(
+			BitnessCurrent,
+			BitnessHave,
+			JvmDllPathBuf, LenJvmDllPath,
+			HardCodedClassPathBuf, LenHardCodedClassPath)))
+		{
 			PSFLSL_GOTO_CLEAN();
+		}
 	}
 	else {
-		if (!!(r = psflsl_runner_fork(BitnessCurrent, BitnessHave, JvmDllPathBuf, LenJvmDllPath)))
+		if (!!(r = psflsl_runner_fork(
+			BitnessCurrent,
+			BitnessHave,
+			JvmDllPathBuf, LenJvmDllPath)))
 			PSFLSL_GOTO_CLEAN();
 	}
 

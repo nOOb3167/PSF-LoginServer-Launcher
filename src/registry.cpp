@@ -1,3 +1,7 @@
+#ifdef _MSC_VER
+#define _CRT_SECURE_NO_WARNINGS
+#endif /* _MSC_VER */
+
 #include <cassert>
 #include <cstddef>
 #include <cstring>
@@ -309,6 +313,7 @@ int psflsl_jvmdll_check_using_current_version(
 	bool HaveValueCurrentVersion = false;
 	bool HaveValueRuntimeLib = false;
 
+	DWORD dwJvmDllPathSize = (DWORD) JvmDllPathSize;
 	DWORD dwLenJvmDllPath = 0;
 
 	if (!!(r = psflsl_jvmdll_get_value(
@@ -325,7 +330,7 @@ int psflsl_jvmdll_check_using_current_version(
 			Bitness,
 			JreKey,
 			SubValBuf, LenSubVal,
-			(PBYTE)JvmDllPathBuf, JvmDllPathSize, &dwLenJvmDllPath,
+			(PBYTE)JvmDllPathBuf, dwJvmDllPathSize, &dwLenJvmDllPath,
 			&HaveValueRuntimeLib)))
 		{
 			PSFLSL_GOTO_CLEAN();
