@@ -64,10 +64,6 @@ ADD_EXECUTABLE(PSF-LoginServer-Launcher
 
 # Config Header Generator stuff
 
-ADD_CUSTOM_TARGET(PSF-Target-ConfigFile
-  DEPENDS PSF-LoginServer-Launcher-Config.txt
-)
-
 ADD_CUSTOM_COMMAND(
   OUTPUT PSF-LoginServer-Launcher-Config.h
   DEPENDS PSF-LoginServer-Launcher-ConfigHeaderGen
@@ -77,8 +73,6 @@ ADD_CUSTOM_COMMAND(
     "${CMAKE_CURRENT_BINARY_DIR}/PSF-LoginServer-Launcher-Config.h"
   COMMENT "Generating Launcher Config"
 )
-
-ADD_DEPENDENCIES(PSF-LoginServer-Launcher PSF-Target-ConfigFile)
 
 # target configuration stuff (gcc options such as -D, -I, -L, -o)
 
