@@ -27,7 +27,7 @@ static int file_read_small(
 static int file_write(
 	const char *FNameDst,
 	const char *HdrSrcBuf, int LenHdrSrc);
-static int file_copy_if_different(const char *FNameSrc, const char *FNameDst);
+static int file_copy_even_if_different(const char *FNameSrc, const char *FNameDst);
 int main(int argc, char **argv);
 
 int hex_encode_char(const char RawChar, char *oHexChar1, char *oHexChar2)
@@ -162,7 +162,7 @@ clean:
 	return r;
 }
 
-int file_copy_if_different(const char *FNameSrc, const char *FNameDst)
+int file_copy_even_if_different(const char *FNameSrc, const char *FNameDst)
 {
 	int r = 0;
 
@@ -221,9 +221,9 @@ int file_copy_if_different(const char *FNameSrc, const char *FNameDst)
 	/* write if have at least src - but no need if have both and are equal */
 	NeedWrite = HaveSrc && !Equal;
 
-	if (NeedWrite)
-		if (!!(r = file_write(FNameDst, HdrSrcBuf, LenHdrSrc)))
-			goto clean;
+	/* NOTE: not using NeedWrite to conditionally update */
+	if (!!(r = file_write(FNameDst, HdrSrcBuf, LenHdrSrc)))
+		goto clean;
 
 clean:
 	if (HdrSrcBuf)
@@ -245,7 +245,7 @@ int main(int argc, char **argv)
 	if (argc < 3)
 		{ r = 1; goto clean; }
 
-	if (!!(r = file_copy_if_different(argv[1], argv[2])))
+	if (!!(r = file_copy_even_if_different(argv[1], argv[2])))
 		goto clean;
 
 clean:
