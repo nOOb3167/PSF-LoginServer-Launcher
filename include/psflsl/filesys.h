@@ -16,6 +16,11 @@ int psflsl_build_path_interpret_relative_current_executable(
 int psflsl_build_current_executable_relative_filename(
 	const char *RelativeBuf, size_t LenRelative,
 	char *ioCombinedBuf, size_t CombinedBufSize, size_t *oLenCombined);
+int psflsl_build_path_expand_separated(
+	const char *PathBuf, size_t LenPath,
+	const char *ExtBuf, size_t LenExt,
+	const char *SeparatorBuf, size_t LenSeparator,
+	char *ExpandedBuf, size_t ExpandedSize, size_t *oLenExpanded);
 
 int psflsl_win_file_exist_ensure(const char *FileNameBuf, size_t LenFileName);
 int psflsl_win_file_exist(
