@@ -1,3 +1,4 @@
 PSFLSL_CONF
 Hello=World
+ConfHardCodedPathSeparator=;
 ConfHardCodedClassPath=../lib

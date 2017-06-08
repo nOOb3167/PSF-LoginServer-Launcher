@@ -42,11 +42,15 @@
 			goto clean;                                                                                                  \
 	}
 
-#define PSFLSL_CONFIG_COMMON_VAR_STRING_INTERPRET_JAVA_CLASS_PATH_SPECIAL_NONUCF(KEYVAL, COMVARS, NAME)                  \
+#define PSFLSL_CONFIG_COMMON_VAR_STRING_INTERPRET_JAVA_CLASS_PATH_SPECIAL_NONUCF(KEYVAL, COMVARS, COMVARS_SEP_NAME, NAME)\
 	{                                                                                                                    \
 		std::string Conf ## NAME;                                                                                        \
-		if (!!(r = psflsl_config_key_ex_interpret_java_class_path_special((KEYVAL), "Conf" # NAME, & Conf ## NAME)))     \
+		if (!!(r = psflsl_config_key_ex_interpret_java_class_path_special((KEYVAL),                                      \
+			(COMVARS).COMVARS_SEP_NAME ## Buf, (COMVARS).Len ## COMVARS_SEP_NAME,                                      \
+			"Conf" # NAME, & Conf ## NAME)))                                                                             \
+		{                                                                                                                \
 			goto clean;                                                                                                  \
+		}                                                                                                                \
 		if (!!(r = psflsl_config_char_from_string_alloc(Conf ## NAME, &(COMVARS).NAME ## Buf, &(COMVARS).Len ## NAME)))  \
 			goto clean;                                                                                                  \
 	}
@@ -71,6 +75,10 @@ int psflsl_config_decode_hex_pairwise_swapped(const std::string &BufferSwapped, 
 int psflsl_config_key_ex(const PsflslConfMap *KeyVal, const char *Key, std::string *oVal);
 int psflsl_config_key_ex_interpret_relative_current_executable(
 	const PsflslConfMap *KeyVal, const char *Key, std::string *oVal);
+int psflsl_config_key_ex_interpret_java_class_path_special(
+	const PsflslConfMap *KeyVal,
+	const char *SeparatorBuf, size_t LenSeparator,
+	const char *Key, std::string *oVal);
 
 int psflsl_config_char_from_string_alloc(const std::string &String, char **oStrBuf, size_t *oLenStr)
 {
@@ -261,7 +269,9 @@ int psflsl_config_key_ex_interpret_relative_current_executable(
 }
 
 int psflsl_config_key_ex_interpret_java_class_path_special(
-	const PsflslConfMap *KeyVal, const char *Key, std::string *oVal)
+	const PsflslConfMap *KeyVal,
+	const char *SeparatorBuf, size_t LenSeparator,
+	const char *Key, std::string *oVal)
 {
 
 	const confmap_t::const_iterator &it = KeyVal->mMap.find(Key);
@@ -271,10 +281,6 @@ int psflsl_config_key_ex_interpret_java_class_path_special(
 
 	char ExtBuf[] = "*.jar";
 	size_t LenExt = (sizeof ExtBuf) - 1;
-
-	// FIXME: hardcoded separator
-	char SeparatorBuf[] = ";";
-	size_t LenSeparator = (sizeof SeparatorBuf) - 1;
 
 	char ExpandedBuf[32768];
 	size_t LenExpanded = 0;
@@ -601,8 +607,8 @@ int psflsl_config_get_common_vars(
 
 	PsflslAuxConfigCommonVars CommonVars = {};
 
-	//PSFLSL_CONFIG_COMMON_VAR_STRING_NONUCF(KeyVal, CommonVars, HardCodedClassPath);
-	PSFLSL_CONFIG_COMMON_VAR_STRING_INTERPRET_JAVA_CLASS_PATH_SPECIAL_NONUCF(KeyVal, CommonVars, HardCodedClassPath);
+	PSFLSL_CONFIG_COMMON_VAR_STRING_NONUCF(KeyVal, CommonVars, HardCodedPathSeparator);
+	PSFLSL_CONFIG_COMMON_VAR_STRING_INTERPRET_JAVA_CLASS_PATH_SPECIAL_NONUCF(KeyVal, CommonVars, HardCodedPathSeparator, HardCodedClassPath);
 
 	if (oCommonVars)
 		*oCommonVars = CommonVars;

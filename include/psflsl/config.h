@@ -14,6 +14,7 @@ struct PsflslConfMap;
 */
 struct PsflslAuxConfigCommonVars
 {
+	char *HardCodedPathSeparatorBuf; size_t LenHardCodedPathSeparator;
 	char *HardCodedClassPathBuf; size_t LenHardCodedClassPath;
 };
 
