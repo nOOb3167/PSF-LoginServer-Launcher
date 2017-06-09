@@ -16,6 +16,7 @@ struct PsflslAuxConfigCommonVars
 {
 	char *HardCodedPathSeparatorBuf; size_t LenHardCodedPathSeparator;
 	char *HardCodedClassPathBuf; size_t LenHardCodedClassPath;
+	char *HardCodedJavaOptsBuf; size_t LenHardCodedJavaOpts;
 };
 
 int psflsl_conf_map_create(PsflslConfMap **oConfMap);

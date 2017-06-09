@@ -1,0 +1,4 @@
+PSFLSL_CONF
+ConfHardCodedPathSeparator=;
+ConfHardCodedClassPath=../lib
+ConfHardCodedJavaOpts=hello@SEP@qqq@SEP@@EXEDIR@../blah.txt

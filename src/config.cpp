@@ -55,6 +55,15 @@
 			goto clean;                                                                                                  \
 	}
 
+#define PSFLSL_CONFIG_COMMON_VAR_STRING_INTERPRET_SUBST_NONUCF(KEYVAL, COMVARS, NAME)                         \
+	{                                                                                                         \
+		std::string Conf ## NAME;                                                                             \
+		if (!!(r = psflsl_config_key_ex_interpret_subst((KEYVAL), "Conf" # NAME, & Conf ## NAME)))            \
+			goto clean;                                                                                       \
+		if (!!(r = psflsl_config_char_from_string_alloc(Conf ## NAME, &(COMVARS).NAME ## Buf, &(COMVARS).Len ## NAME))) \
+			goto clean;                                                                                       \
+	}
+
 typedef ::std::map<::std::string, ::std::string> confmap_t;
 
 /** @sa
@@ -309,6 +318,55 @@ int psflsl_config_key_ex_interpret_java_class_path_special(
 
 	if (oVal)
 		*oVal = std::string(ExpandedBuf, LenExpanded);
+
+	return 0;
+}
+
+int psflsl_config_key_ex_interpret_subst(
+	const PsflslConfMap *KeyVal, const char *Key, std::string *oVal)
+{
+	const confmap_t::const_iterator &it = KeyVal->mMap.find(Key);
+
+	if (it == KeyVal->mMap.end())
+		return 1;
+
+	std::string ResultVal;
+
+	{
+		std::string RawVal = it->second;
+
+		size_t Offset = 0;
+		size_t OffsetAlpha = 0;
+		size_t OffsetAlphaClosing = 0;
+		std::string Pattern;
+
+		while (Offset < RawVal.size()) {
+			Pattern = "";
+			/* OffsetAlpha - offset of alpha OR std::string::npos (means 'end' in substr) */
+			OffsetAlpha = RawVal.find_first_of("@", Offset);
+			OffsetAlphaClosing = RawVal.find_first_of("@", OffsetAlpha == std::string::npos ? OffsetAlpha : OffsetAlpha + 1);
+			/* unclosed pattern */
+			if (OffsetAlpha != std::string::npos && OffsetAlphaClosing == std::string::npos)
+				return 1;
+			if (OffsetAlpha != std::string::npos && OffsetAlphaClosing != std::string::npos)
+				Pattern = RawVal.substr(OffsetAlpha, (OffsetAlphaClosing + 1) - OffsetAlpha);
+			ResultVal.append(RawVal.substr(Offset, OffsetAlpha == std::string::npos ? OffsetAlpha : OffsetAlpha - Offset));
+			if (Pattern == "@SEP@") {
+				ResultVal.append("\0", 1);
+			}
+			else if (Pattern == "@EXEDIR@") {
+				char ExeBuf[512] = {};
+				size_t LenExe = 0;
+				if (!! psflsl_get_current_executable_directory(ExeBuf, sizeof ExeBuf, &LenExe))
+					return 1;
+				ResultVal.append(std::string(ExeBuf, LenExe));
+			}
+			Offset = OffsetAlphaClosing == std::string::npos ? OffsetAlphaClosing : OffsetAlphaClosing + 1;
+		}
+	}
+
+	if (oVal)
+		oVal->swap(ResultVal);
 
 	return 0;
 }
@@ -609,6 +667,7 @@ int psflsl_config_get_common_vars(
 
 	PSFLSL_CONFIG_COMMON_VAR_STRING_NONUCF(KeyVal, CommonVars, HardCodedPathSeparator);
 	PSFLSL_CONFIG_COMMON_VAR_STRING_INTERPRET_JAVA_CLASS_PATH_SPECIAL_NONUCF(KeyVal, CommonVars, HardCodedPathSeparator, HardCodedClassPath);
+	PSFLSL_CONFIG_COMMON_VAR_STRING_INTERPRET_SUBST_NONUCF(KeyVal, CommonVars, HardCodedJavaOpts);
 
 	if (oCommonVars)
 		*oCommonVars = CommonVars;

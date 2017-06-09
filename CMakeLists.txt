@@ -64,12 +64,14 @@ ADD_EXECUTABLE(PSF-LoginServer-Launcher
 
 # Config Header Generator stuff
 
+SET(PSFLSL_CONFIG_NAME "PSF-LoginServer-Launcher-Config_x${PSFLSL_ARCH_BITNESS}.txt")
+
 ADD_CUSTOM_COMMAND(
   OUTPUT PSF-LoginServer-Launcher-Config.h
   DEPENDS PSF-LoginServer-Launcher-ConfigHeaderGen
-          "${CMAKE_CURRENT_SOURCE_DIR}/data/PSF-LoginServer-Launcher-Config.txt"
+          "${CMAKE_CURRENT_SOURCE_DIR}/data/${PSFLSL_CONFIG_NAME}"
   COMMAND PSF-LoginServer-Launcher-ConfigHeaderGen
-    "${CMAKE_CURRENT_SOURCE_DIR}/data/PSF-LoginServer-Launcher-Config.txt"
+    "${CMAKE_CURRENT_SOURCE_DIR}/data/${PSFLSL_CONFIG_NAME}"
     "${CMAKE_CURRENT_BINARY_DIR}/PSF-LoginServer-Launcher-Config.h"
   COMMENT "Generating Launcher Config"
 )
