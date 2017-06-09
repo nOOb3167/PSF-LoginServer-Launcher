@@ -16,6 +16,10 @@
 
 #include <PSF-LoginServer-Launcher-Config.h>
 
+#define PSFLSL_CONFIG_SUBST_PATTERN_ALPHA  "@"
+#define PSFLSL_CONFIG_SUBST_PATTERN_SEP    "@SEP@"
+#define PSFLSL_CONFIG_SUBST_PATTERN_EXEDIR "@EXEDIR@"
+
 #define PSFLSL_CONFIG_COMMON_VAR_UINT32_NONUCF(KEYVAL, COMVARS, NAME)                  \
 	{                                                                                  \
 		uint32_t Conf ## NAME = 0;                                                     \
@@ -76,6 +80,7 @@ struct PsflslConfMap
 };
 
 int psflsl_config_char_from_string_alloc(const std::string &String, char **oStrBuf, size_t *oLenStr);
+int psflsl_config_pattern_subst(const std::string &RawVal, std::string *oResultVal);
 
 size_t psflsl_config_decode_hex_char_(const char *pHexChar, size_t *oIsError);
 int psflsl_config_decode_hex(const std::string &BufferSwapped, std::string *oDecoded);
@@ -88,6 +93,8 @@ int psflsl_config_key_ex_interpret_java_class_path_special(
 	const PsflslConfMap *KeyVal,
 	const char *SeparatorBuf, size_t LenSeparator,
 	const char *Key, std::string *oVal);
+int psflsl_config_key_ex_interpret_subst(
+	const PsflslConfMap *KeyVal, const char *Key, std::string *oVal);
 
 int psflsl_config_char_from_string_alloc(const std::string &String, char **oStrBuf, size_t *oLenStr)
 {
@@ -111,6 +118,49 @@ int psflsl_config_char_from_string_alloc(const std::string &String, char **oStrB
 
 	if (oLenStr)
 		*oLenStr = LenStr;
+
+clean:
+
+	return r;
+}
+
+int psflsl_config_pattern_subst(const std::string &RawVal, std::string *oResultVal)
+{
+	int r = 0;
+
+	std::string ResultVal;
+
+	size_t Offset = 0;
+	size_t OffsetAlpha = 0;
+	size_t OffsetAlphaClosing = 0;
+	std::string Pattern;
+
+	while (Offset < RawVal.size()) {
+		Pattern = "";
+		/* OffsetAlpha - offset of alpha OR std::string::npos (means 'end' in substr) */
+		OffsetAlpha = RawVal.find_first_of(PSFLSL_CONFIG_SUBST_PATTERN_ALPHA, Offset);
+		OffsetAlphaClosing = RawVal.find_first_of(PSFLSL_CONFIG_SUBST_PATTERN_ALPHA, OffsetAlpha == std::string::npos ? OffsetAlpha : OffsetAlpha + 1);
+		/* unclosed pattern */
+		if (OffsetAlpha != std::string::npos && OffsetAlphaClosing == std::string::npos)
+			return 1;
+		if (OffsetAlpha != std::string::npos && OffsetAlphaClosing != std::string::npos)
+			Pattern = RawVal.substr(OffsetAlpha, (OffsetAlphaClosing + 1) - OffsetAlpha);
+		ResultVal.append(RawVal.substr(Offset, OffsetAlpha == std::string::npos ? OffsetAlpha : OffsetAlpha - Offset));
+		if (Pattern == PSFLSL_CONFIG_SUBST_PATTERN_SEP) {
+			ResultVal.append("\0", 1);
+		}
+		else if (Pattern == PSFLSL_CONFIG_SUBST_PATTERN_EXEDIR) {
+			char ExeBuf[512] = {};
+			size_t LenExe = 0;
+			if (!! psflsl_get_current_executable_directory(ExeBuf, sizeof ExeBuf, &LenExe))
+				return 1;
+			ResultVal.append(std::string(ExeBuf, LenExe));
+		}
+		Offset = OffsetAlphaClosing == std::string::npos ? OffsetAlphaClosing : OffsetAlphaClosing + 1;
+	}
+
+	if (oResultVal)
+		oResultVal->swap(ResultVal);
 
 clean:
 
@@ -330,43 +380,8 @@ int psflsl_config_key_ex_interpret_subst(
 	if (it == KeyVal->mMap.end())
 		return 1;
 
-	std::string ResultVal;
-
-	{
-		std::string RawVal = it->second;
-
-		size_t Offset = 0;
-		size_t OffsetAlpha = 0;
-		size_t OffsetAlphaClosing = 0;
-		std::string Pattern;
-
-		while (Offset < RawVal.size()) {
-			Pattern = "";
-			/* OffsetAlpha - offset of alpha OR std::string::npos (means 'end' in substr) */
-			OffsetAlpha = RawVal.find_first_of("@", Offset);
-			OffsetAlphaClosing = RawVal.find_first_of("@", OffsetAlpha == std::string::npos ? OffsetAlpha : OffsetAlpha + 1);
-			/* unclosed pattern */
-			if (OffsetAlpha != std::string::npos && OffsetAlphaClosing == std::string::npos)
-				return 1;
-			if (OffsetAlpha != std::string::npos && OffsetAlphaClosing != std::string::npos)
-				Pattern = RawVal.substr(OffsetAlpha, (OffsetAlphaClosing + 1) - OffsetAlpha);
-			ResultVal.append(RawVal.substr(Offset, OffsetAlpha == std::string::npos ? OffsetAlpha : OffsetAlpha - Offset));
-			if (Pattern == "@SEP@") {
-				ResultVal.append("\0", 1);
-			}
-			else if (Pattern == "@EXEDIR@") {
-				char ExeBuf[512] = {};
-				size_t LenExe = 0;
-				if (!! psflsl_get_current_executable_directory(ExeBuf, sizeof ExeBuf, &LenExe))
-					return 1;
-				ResultVal.append(std::string(ExeBuf, LenExe));
-			}
-			Offset = OffsetAlphaClosing == std::string::npos ? OffsetAlphaClosing : OffsetAlphaClosing + 1;
-		}
-	}
-
-	if (oVal)
-		oVal->swap(ResultVal);
+	if (!!psflsl_config_pattern_subst(it->second, oVal))
+		return 1;
 
 	return 0;
 }
