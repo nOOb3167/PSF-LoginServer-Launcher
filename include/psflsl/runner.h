@@ -18,11 +18,13 @@ int psflsl_runner_run(
 	enum PsflslBitness BitnessCurrent,
 	enum PsflslBitness BitnessHave,
 	char *JvmDllPathBuf, size_t LenJvmDllPath,
-	char *HardCodedClassPathBuf, size_t LenHardCodedClassPath);
+	char *HardCodedClassPathBuf, size_t LenHardCodedClassPath,
+	char *HardCodedJavaOptsBuf, size_t LenHardCodedJavaOpts);
 int psflsl_runner_run_or_fork(
 	enum PsflslBitness BitnessCurrent,
 	enum PsflslBitness BitnessHave,
 	char *JvmDllPathBuf, size_t LenJvmDllPath,
-	char *HardCodedClassPathBuf, size_t LenHardCodedClassPath);
+	char *HardCodedClassPathBuf, size_t LenHardCodedClassPath,
+	char *HardCodedJavaOptsBuf, size_t LenHardCodedJavaOpts);
 
 #endif /* _PSFLSL_RUNNER_H_ */

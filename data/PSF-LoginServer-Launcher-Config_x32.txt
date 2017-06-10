@@ -1,4 +1,4 @@
 PSFLSL_CONF
 ConfHardCodedPathSeparator=;
 ConfHardCodedClassPath=../lib
-ConfHardCodedJavaOpts=hello@SEP@qqq@SEP@@EXEDIR@../blah.txt
+ConfHardCodedJavaOpts=-Dprog.home=@EXEDIR@@SEP@-Djna.library.path=@EXEDIR@pscrypto-lib/win32-x86@SEP@-Djna.debug_load=true

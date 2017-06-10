@@ -6,6 +6,8 @@
 #include <cstdlib>
 #include <cstddef>
 
+#include <string>
+
 #include <jni.h>
 #include <windows.h>
 
@@ -193,7 +195,8 @@ int psflsl_runner_run(
 	enum PsflslBitness BitnessCurrent,
 	enum PsflslBitness BitnessHave,
 	char *JvmDllPathBuf, size_t LenJvmDllPath,
-	char *HardCodedClassPathBuf, size_t LenHardCodedClassPath)
+	char *HardCodedClassPathBuf, size_t LenHardCodedClassPath,
+	char *HardCodedJavaOptsBuf, size_t LenHardCodedJavaOpts)
 {
 	int r = 0;
 
@@ -211,12 +214,14 @@ int psflsl_runner_run(
 	JavaVM *jvm = NULL;
 	JNIEnv *env = NULL;
 	JavaVMInitArgs vmArgs = {};
-	JavaVMOption vmOpts[1] = {};
+
+	const size_t vmOptsMax = 512;
+	JavaVMOption vmOpts[vmOptsMax] = {};
 
 	jclass mainClass = NULL;
 	jmethodID mainMethod = NULL;
 
-	if (sizeof StrJavaClassPath + LenHardCodedClassPath > sizeof VmOptJavaClassPathBuf)
+	if (sizeof StrJavaClassPath + LenHardCodedClassPath + 1 > sizeof VmOptJavaClassPathBuf)
 		PSFLSL_ERR_CLEAN(1);
 
 	if (!!(r = psflsl_buf_ensure_haszero(HardCodedClassPathBuf, LenHardCodedClassPath + 1)))
@@ -231,13 +236,46 @@ int psflsl_runner_run(
 	if (!(CreateJVM = (CreateJVMFunc)GetProcAddress(jvmDll, "JNI_CreateJavaVM")))
 		PSFLSL_ERR_CLEAN(1);
 
-	vmOpts[0].optionString = VmOptJavaClassPathBuf;
-	vmOpts[0].extraInfo = NULL;
+	/* extract individual options */
 
-	vmArgs.version = JNI_VERSION_1_8;
-	vmArgs.nOptions = sizeof vmOpts / sizeof *vmOpts;
-	vmArgs.options = vmOpts;
-	vmArgs.ignoreUnrecognized = false;
+	{
+		jint NumOpts = 0;
+
+		std::string strOpts(HardCodedJavaOptsBuf, LenHardCodedJavaOpts);
+		size_t OffsetOpts = 0;
+
+		/* java.class.path opt */
+
+		if (!!(r = psflsl_buf_ensure_haszero(HardCodedClassPathBuf, LenHardCodedClassPath + 1)))
+			PSFLSL_GOTO_CLEAN();
+
+		vmOpts[NumOpts].optionString = (char *) calloc(sizeof StrJavaClassPath + LenHardCodedClassPath + 1 /*zero*/, 1);
+		vmOpts[NumOpts].extraInfo = NULL;
+		strncat(vmOpts[NumOpts].optionString, StrJavaClassPath, sizeof StrJavaClassPath);
+		strncat(vmOpts[NumOpts].optionString, HardCodedClassPathBuf, LenHardCodedClassPath);
+		NumOpts++;
+
+		/* generic java opts */
+
+		for (/* dummy */; NumOpts < vmOptsMax && OffsetOpts != std::string::npos; NumOpts++) {
+			size_t OffsetZero = strOpts.find_first_of('\0', OffsetOpts);
+			std::string Opt = strOpts.substr(OffsetOpts, OffsetZero);
+
+			vmOpts[NumOpts].optionString = (char *) malloc(Opt.size() + 1 /*zero*/);
+			vmOpts[NumOpts].extraInfo = NULL;
+			memmove(vmOpts[NumOpts].optionString, Opt.c_str(), Opt.size() + 1);
+
+			OffsetOpts = OffsetZero == std::string::npos ? OffsetZero : OffsetZero + 1;
+		}
+		assert(OffsetOpts == std::string::npos);
+
+		/* setup the vmArgs */
+
+		vmArgs.version = JNI_VERSION_1_8;
+		vmArgs.nOptions = NumOpts;
+		vmArgs.options = vmOpts;
+		vmArgs.ignoreUnrecognized = false;
+	}
 
 	if (JNI_OK != CreateJVM(&jvm, (void **)&env, &vmArgs))
 		assert(0);
@@ -323,7 +361,8 @@ int psflsl_runner_run_or_fork(
 	enum PsflslBitness BitnessCurrent,
 	enum PsflslBitness BitnessHave,
 	char *JvmDllPathBuf, size_t LenJvmDllPath,
-	char *HardCodedClassPathBuf, size_t LenHardCodedClassPath)
+	char *HardCodedClassPathBuf, size_t LenHardCodedClassPath,
+	char *HardCodedJavaOptsBuf, size_t LenHardCodedJavaOpts)
 {
 	int r = 0;
 
@@ -332,7 +371,8 @@ int psflsl_runner_run_or_fork(
 			BitnessCurrent,
 			BitnessHave,
 			JvmDllPathBuf, LenJvmDllPath,
-			HardCodedClassPathBuf, LenHardCodedClassPath)))
+			HardCodedClassPathBuf, LenHardCodedClassPath,
+			HardCodedJavaOptsBuf, LenHardCodedJavaOpts)))
 		{
 			PSFLSL_GOTO_CLEAN();
 		}

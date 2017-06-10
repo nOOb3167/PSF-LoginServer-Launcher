@@ -162,8 +162,6 @@ int psflsl_config_pattern_subst(const std::string &RawVal, std::string *oResultV
 	if (oResultVal)
 		oResultVal->swap(ResultVal);
 
-clean:
-
 	return r;
 }
 
