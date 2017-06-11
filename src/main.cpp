@@ -34,7 +34,8 @@ int main(int argc, char **argv)
 			psflsl_bitness_current(),
 			argv[2], strlen(argv[2]),
 			CommonVars.HardCodedClassPathBuf, CommonVars.LenHardCodedClassPath,
-			CommonVars.HardCodedJavaOptsBuf, CommonVars.LenHardCodedJavaOpts)))
+			CommonVars.HardCodedJavaOptsBuf, CommonVars.LenHardCodedJavaOpts,
+			CommonVars.JavaMainClassBuf, CommonVars.LenJavaMainClass)))
 		{
 			PSFLSL_GOTO_CLEAN();
 		}
@@ -57,7 +58,8 @@ int main(int argc, char **argv)
 			BitnessHave,
 			JvmDllPathBuf, LenJvmDllPath,
 			CommonVars.HardCodedClassPathBuf, CommonVars.LenHardCodedClassPath,
-			CommonVars.HardCodedJavaOptsBuf, CommonVars.LenHardCodedJavaOpts)))
+			CommonVars.HardCodedJavaOptsBuf, CommonVars.LenHardCodedJavaOpts,
+			CommonVars.JavaMainClassBuf, CommonVars.LenJavaMainClass)))
 		{
 			PSFLSL_GOTO_CLEAN();
 		}

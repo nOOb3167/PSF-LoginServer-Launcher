@@ -196,7 +196,8 @@ int psflsl_runner_run(
 	enum PsflslBitness BitnessHave,
 	char *JvmDllPathBuf, size_t LenJvmDllPath,
 	char *HardCodedClassPathBuf, size_t LenHardCodedClassPath,
-	char *HardCodedJavaOptsBuf, size_t LenHardCodedJavaOpts)
+	char *HardCodedJavaOptsBuf, size_t LenHardCodedJavaOpts,
+	char *JavaMainClassBuf, size_t LenJavaMainClass)
 {
 	int r = 0;
 
@@ -218,8 +219,11 @@ int psflsl_runner_run(
 	const size_t vmOptsMax = 512;
 	JavaVMOption vmOpts[vmOptsMax] = {};
 
+	jclass stringClass = NULL;
 	jclass mainClass = NULL;
 	jmethodID mainMethod = NULL;
+	jobjectArray mainArg0 = NULL;
+	jthrowable mainException = NULL;
 
 	if (sizeof StrJavaClassPath + LenHardCodedClassPath + 1 > sizeof VmOptJavaClassPathBuf)
 		PSFLSL_ERR_CLEAN(1);
@@ -280,16 +284,27 @@ int psflsl_runner_run(
 	if (JNI_OK != CreateJVM(&jvm, (void **)&env, &vmArgs))
 		assert(0);
 
-	if (!(mainClass = env->functions->FindClass(env, "Main")))
+	if (!!(r = psflsl_buf_ensure_haszero(JavaMainClassBuf, LenJavaMainClass + 1)))
+		PSFLSL_GOTO_CLEAN();
+
+	if (!(stringClass = env->functions->FindClass(env, "Ljava/lang/String;")))
+		PSFLSL_ERR_CLEAN(1);
+
+	if (!(mainClass = env->functions->FindClass(env, JavaMainClassBuf)))
 		PSFLSL_ERR_CLEAN(1);
 	
 	if (!(mainMethod = env->functions->GetStaticMethodID(env, mainClass, "main", "([Ljava/lang/String;)V")))
 		PSFLSL_ERR_CLEAN(1);
 
-	env->functions->CallStaticVoidMethod(env, mainClass, mainMethod, NULL);
-
-	if (env->functions->ExceptionCheck(env))
+	if (!(mainArg0 = env->functions->NewObjectArray(env, 0, mainClass, NULL)))
 		PSFLSL_ERR_CLEAN(1);
+
+	env->functions->CallStaticVoidMethod(env, mainClass, mainMethod, mainArg0);
+
+	if (!!(mainException = env->functions->ExceptionOccurred(env))) {
+		env->functions->ExceptionDescribe(env);
+		PSFLSL_ERR_CLEAN(1);
+	}
 
 clean:
 	if (jvm)
@@ -362,7 +377,8 @@ int psflsl_runner_run_or_fork(
 	enum PsflslBitness BitnessHave,
 	char *JvmDllPathBuf, size_t LenJvmDllPath,
 	char *HardCodedClassPathBuf, size_t LenHardCodedClassPath,
-	char *HardCodedJavaOptsBuf, size_t LenHardCodedJavaOpts)
+	char *HardCodedJavaOptsBuf, size_t LenHardCodedJavaOpts,
+	char *JavaMainClassBuf, size_t LenJavaMainClass)
 {
 	int r = 0;
 
@@ -372,7 +388,8 @@ int psflsl_runner_run_or_fork(
 			BitnessHave,
 			JvmDllPathBuf, LenJvmDllPath,
 			HardCodedClassPathBuf, LenHardCodedClassPath,
-			HardCodedJavaOptsBuf, LenHardCodedJavaOpts)))
+			HardCodedJavaOptsBuf, LenHardCodedJavaOpts,
+			JavaMainClassBuf, LenJavaMainClass)))
 		{
 			PSFLSL_GOTO_CLEAN();
 		}
