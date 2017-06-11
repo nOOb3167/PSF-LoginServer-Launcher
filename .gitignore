@@ -2,3 +2,6 @@
 /BuildMingw/
 /inst/
 /inst_mingw/
+
+/cmake/Build_x32/
+/cmake/Build_x64/
