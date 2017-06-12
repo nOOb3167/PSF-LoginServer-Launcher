@@ -16,6 +16,8 @@
 
 #include <PSF-LoginServer-Launcher-Config.h>
 
+#define PSFLSL_CONFIG_HEADER_STRING "PSFLSL_CONF"
+
 #define PSFLSL_CONFIG_SUBST_PATTERN_ALPHA  "@"
 #define PSFLSL_CONFIG_SUBST_PATTERN_SEP    "@SEP@"
 #define PSFLSL_CONFIG_SUBST_PATTERN_EXEDIR "@EXEDIR@"
@@ -438,7 +440,7 @@ int psflsl_config_parse(
 	uint32_t DataLength = (uint32_t)LenBuffer;
 
 	const char equals = '=';
-	const char hdr_nulterm_expected[] = "PSFLSL_CONF";
+	const char hdr_nulterm_expected[] = PSFLSL_CONFIG_HEADER_STRING;
 	const size_t hdr_raw_size = sizeof(hdr_nulterm_expected) - 1;
 
 	if (!!(r = psflsl_conf_map_create(&KeyVal)))
