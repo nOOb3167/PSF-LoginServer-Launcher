@@ -6,6 +6,7 @@
 #include <cstdlib>
 #include <cstdio>
 #include <cstdint>
+#include <cstring>
 
 #include <string>
 #include <map>
