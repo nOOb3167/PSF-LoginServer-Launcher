@@ -680,6 +680,7 @@ int psflsl_config_get_common_vars(
 
 	PSFLSL_CONFIG_COMMON_VAR_STRING_NONUCF(KeyVal, CommonVars, HardCodedPathSeparator);
 	PSFLSL_CONFIG_COMMON_VAR_STRING_INTERPRET_JAVA_CLASS_PATH_SPECIAL_NONUCF(KeyVal, CommonVars, HardCodedPathSeparator, HardCodedClassPath);
+	PSFLSL_CONFIG_COMMON_VAR_STRING_INTERPRET_SUBST_NONUCF(KeyVal, CommonVars, HardCodedClassPath2);
 	PSFLSL_CONFIG_COMMON_VAR_STRING_INTERPRET_SUBST_NONUCF(KeyVal, CommonVars, HardCodedJavaOpts);
 	PSFLSL_CONFIG_COMMON_VAR_STRING_NONUCF(KeyVal, CommonVars, JavaMainClass);
 

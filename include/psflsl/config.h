@@ -16,6 +16,7 @@ struct PsflslAuxConfigCommonVars
 {
 	char *HardCodedPathSeparatorBuf; size_t LenHardCodedPathSeparator;
 	char *HardCodedClassPathBuf; size_t LenHardCodedClassPath;
+	char *HardCodedClassPath2Buf; size_t LenHardCodedClassPath2;
 	char *HardCodedJavaOptsBuf; size_t LenHardCodedJavaOpts;
 	char *JavaMainClassBuf; size_t LenJavaMainClass;
 };

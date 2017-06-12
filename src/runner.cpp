@@ -195,7 +195,9 @@ int psflsl_runner_run(
 	enum PsflslBitness BitnessCurrent,
 	enum PsflslBitness BitnessHave,
 	char *JvmDllPathBuf, size_t LenJvmDllPath,
+	char *HardCodedPathSeparatorBuf, size_t LenHardCodedPathSeparator,
 	char *HardCodedClassPathBuf, size_t LenHardCodedClassPath,
+	char *HardCodedClassPath2Buf, size_t LenHardCodedClassPath2,
 	char *HardCodedJavaOptsBuf, size_t LenHardCodedJavaOpts,
 	char *JavaMainClassBuf, size_t LenJavaMainClass)
 {
@@ -205,9 +207,6 @@ int psflsl_runner_run(
 	   see about extraInfo hooks (exit, abort) */
 	/* NOTE: https://docs.oracle.com/javase/tutorial/essential/environment/sysprop.html
 	         java.class.path platform-specific separator */
-
-	char StrJavaClassPath[] = "-Djava.class.path=";
-	char VmOptJavaClassPathBuf[4096] = {};
 
 	HMODULE jvmDll = 0;
 	CreateJVMFunc CreateJVM = 0;
@@ -225,15 +224,6 @@ int psflsl_runner_run(
 	jobjectArray mainArg0 = NULL;
 	jthrowable mainException = NULL;
 
-	if (sizeof StrJavaClassPath + LenHardCodedClassPath + 1 > sizeof VmOptJavaClassPathBuf)
-		PSFLSL_ERR_CLEAN(1);
-
-	if (!!(r = psflsl_buf_ensure_haszero(HardCodedClassPathBuf, LenHardCodedClassPath + 1)))
-		PSFLSL_GOTO_CLEAN();
-
-	strncat(VmOptJavaClassPathBuf, StrJavaClassPath, sizeof StrJavaClassPath);
-	strncat(VmOptJavaClassPathBuf, HardCodedClassPathBuf, LenHardCodedClassPath);
-
 	if (!(jvmDll = LoadLibrary(JvmDllPathBuf)))
 		PSFLSL_ERR_CLEAN(1);
 
@@ -245,6 +235,8 @@ int psflsl_runner_run(
 	{
 		jint NumOpts = 0;
 
+		char StrJavaClassPath[] = "-Djava.class.path=";
+
 		std::string strOpts(HardCodedJavaOptsBuf, LenHardCodedJavaOpts);
 		size_t OffsetOpts = 0;
 
@@ -253,10 +245,18 @@ int psflsl_runner_run(
 		if (!!(r = psflsl_buf_ensure_haszero(HardCodedClassPathBuf, LenHardCodedClassPath + 1)))
 			PSFLSL_GOTO_CLEAN();
 
-		vmOpts[NumOpts].optionString = (char *) calloc(sizeof StrJavaClassPath + LenHardCodedClassPath + 1 /*zero*/, 1);
+		if (!!(r = psflsl_buf_ensure_haszero(HardCodedClassPath2Buf, LenHardCodedClassPath2 + 1)))
+			PSFLSL_GOTO_CLEAN();
+
+		if (!!(r = psflsl_buf_ensure_haszero(HardCodedPathSeparatorBuf, LenHardCodedPathSeparator + 1)))
+			PSFLSL_GOTO_CLEAN();
+
+		vmOpts[NumOpts].optionString = (char *) calloc(sizeof StrJavaClassPath + LenHardCodedClassPath + 1 /*sep*/ + LenHardCodedClassPath2 + 1 /*zero*/, 1);
 		vmOpts[NumOpts].extraInfo = NULL;
 		strncat(vmOpts[NumOpts].optionString, StrJavaClassPath, sizeof StrJavaClassPath);
 		strncat(vmOpts[NumOpts].optionString, HardCodedClassPathBuf, LenHardCodedClassPath);
+		strncat(vmOpts[NumOpts].optionString, HardCodedPathSeparatorBuf, LenHardCodedPathSeparator);
+		strncat(vmOpts[NumOpts].optionString, HardCodedClassPath2Buf, LenHardCodedClassPath2);
 		NumOpts++;
 
 		/* generic java opts */
@@ -376,7 +376,9 @@ int psflsl_runner_run_or_fork(
 	enum PsflslBitness BitnessCurrent,
 	enum PsflslBitness BitnessHave,
 	char *JvmDllPathBuf, size_t LenJvmDllPath,
+	char *HardCodedPathSeparatorBuf, size_t LenHardCodedPathSeparator,
 	char *HardCodedClassPathBuf, size_t LenHardCodedClassPath,
+	char *HardCodedClassPath2Buf, size_t LenHardCodedClassPath2,
 	char *HardCodedJavaOptsBuf, size_t LenHardCodedJavaOpts,
 	char *JavaMainClassBuf, size_t LenJavaMainClass)
 {
@@ -387,7 +389,9 @@ int psflsl_runner_run_or_fork(
 			BitnessCurrent,
 			BitnessHave,
 			JvmDllPathBuf, LenJvmDllPath,
+			HardCodedPathSeparatorBuf, LenHardCodedPathSeparator,
 			HardCodedClassPathBuf, LenHardCodedClassPath,
+			HardCodedClassPath2Buf, LenHardCodedClassPath2,
 			HardCodedJavaOptsBuf, LenHardCodedJavaOpts,
 			JavaMainClassBuf, LenJavaMainClass)))
 		{
