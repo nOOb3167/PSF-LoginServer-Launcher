@@ -24,13 +24,17 @@ ENDIF ()
 
 FIND_PATH(PSFLSL_JNI_HEADER_INCLUDE_DIR
   NAMES jni.h
-  PATHS data/jni_external/
+  PATHS "${CMAKE_SOURCE_DIR}/data/jni_external/"
+  CMAKE_FIND_ROOT_PATH_BOTH
   DOC "Directory where jni.h is located (Will be put on include path). \
        jni.h does come included with the Java JDK. \
        However it is also bundled with this project as fallback."
 )
 FIND_PATH(PSFLSL_JNI_MD_HEADER_INCLUDE_DIR
-  NAMES jni_md.h PATHS data/jni_external/win32/ DOC "See doc for jni.h")
+  NAMES jni_md.h
+  PATHS "${CMAKE_SOURCE_DIR}/data/jni_external/win32/"
+  CMAKE_FIND_ROOT_PATH_BOTH
+  DOC "See doc for jni.h")
 IF (NOT (PSFLSL_JNI_HEADER_INCLUDE_DIR AND PSFLSL_JNI_MD_HEADER_INCLUDE_DIR))
   MESSAGE(SEND_ERROR "jni.h not found")
 ENDIF ()
