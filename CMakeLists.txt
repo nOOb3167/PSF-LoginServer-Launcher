@@ -2,6 +2,8 @@ CMAKE_MINIMUM_REQUIRED(VERSION 2.4)
 
 PROJECT (PSF-LoginServer-Launcher)
 
+OPTION(PSFLSL_DISABLE_CONFIG_GENERATION "Use an empty default config instead of generating one" OFF)
+
 # use custom find module for Shlwapi
 
 LIST(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake/Modules/")
@@ -64,17 +66,31 @@ ADD_EXECUTABLE(PSF-LoginServer-Launcher
 
 # Config Header Generator stuff
 
-SET(PSFLSL_CONFIG_NAME "PSF-LoginServer-Launcher-Config_x${PSFLSL_ARCH_BITNESS}.txt")
+IF (PSFLSL_DISABLE_CONFIG_GENERATION)
+  SET(PSFLSL_CONFIG_NAME "PSF-LoginServer-Launcher-Config-PreGenerated-Default.h")
 
-ADD_CUSTOM_COMMAND(
-  OUTPUT PSF-LoginServer-Launcher-Config.h
-  DEPENDS PSF-LoginServer-Launcher-ConfigHeaderGen
-          "${CMAKE_CURRENT_SOURCE_DIR}/data/${PSFLSL_CONFIG_NAME}"
-  COMMAND PSF-LoginServer-Launcher-ConfigHeaderGen
-    "${CMAKE_CURRENT_SOURCE_DIR}/data/${PSFLSL_CONFIG_NAME}"
-    "${CMAKE_CURRENT_BINARY_DIR}/PSF-LoginServer-Launcher-Config.h"
-  COMMENT "Generating Launcher Config"
-)
+  ADD_CUSTOM_COMMAND(
+    OUTPUT PSF-LoginServer-Launcher-Config.h
+    DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/data/${PSFLSL_CONFIG_NAME}"
+    COMMAND "${CMAKE_COMMAND}"
+      -E copy_if_different
+      "${CMAKE_CURRENT_SOURCE_DIR}/data/${PSFLSL_CONFIG_NAME}"
+      "${CMAKE_CURRENT_BINARY_DIR}/PSF-LoginServer-Launcher-Config.h"
+    COMMENT "Generating Launcher Config (Empty default)"
+  )  
+ELSE ()
+  SET(PSFLSL_CONFIG_NAME "PSF-LoginServer-Launcher-Config_x${PSFLSL_ARCH_BITNESS}.txt")
+
+  ADD_CUSTOM_COMMAND(
+    OUTPUT PSF-LoginServer-Launcher-Config.h
+    DEPENDS PSF-LoginServer-Launcher-ConfigHeaderGen
+            "${CMAKE_CURRENT_SOURCE_DIR}/data/${PSFLSL_CONFIG_NAME}"
+    COMMAND PSF-LoginServer-Launcher-ConfigHeaderGen
+      "${CMAKE_CURRENT_SOURCE_DIR}/data/${PSFLSL_CONFIG_NAME}"
+      "${CMAKE_CURRENT_BINARY_DIR}/PSF-LoginServer-Launcher-Config.h"
+    COMMENT "Generating Launcher Config"
+  )  
+ENDIF ()
 
 # target configuration stuff (gcc options such as -D, -I, -L, -o)
 
