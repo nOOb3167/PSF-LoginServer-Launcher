@@ -119,9 +119,16 @@ SET_TARGET_PROPERTIES(PSF-LoginServer-Launcher
 # target install definition stuff
 
 INSTALL(TARGETS PSF-LoginServer-Launcher
+  EXPORT psflsl-executable-export
   LIBRARY DESTINATION "lib"
   RUNTIME DESTINATION "bin"
   ARCHIVE DESTINATION "lib"
+)
+
+INSTALL(EXPORT psflsl-executable-export
+  DESTINATION "cmake"
+  FILE "x${PSFLSL_ARCH_BITNESS}-psflsl-executable-export.cmake"
+  NAMESPACE "x${PSFLSL_ARCH_BITNESS}-"
 )
 
 # Visual Studio CMake generator specific stuff
