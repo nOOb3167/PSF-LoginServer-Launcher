@@ -3,4 +3,4 @@ ConfHardCodedPathSeparator=;
 ConfHardCodedClassPath=../lib
 ConfHardCodedClassPath2=@EXEDIR@../pscrypto-lib/
 ConfHardCodedJavaOpts=-Dprog.home=@EXEDIR@../@SEP@-Djna.debug_load=true
-ConfJavaMainClass=Main
+ConfJavaMainClass=PsLogin

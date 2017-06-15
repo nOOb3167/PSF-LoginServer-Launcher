@@ -119,6 +119,8 @@ ADD_CUSTOM_TARGET(MavenInstall
       "-DPSFLSL_FILE_NAME_32=${PSFLSL_FILE_NAME_32}"
       "-DPSFLSL_FILE_NAME_64=${PSFLSL_FILE_NAME_64}"
       -P "${PSFLSL_LOGINSERVER_SOURCE_DIR}/cmake/BuildHelper/MavenInstallHelper.cmake"
+  COMMENT
+    "Invoking MavenInstallHelper"
 )
 
 ADD_DEPENDENCIES(Build_x32 Configure_x32)
