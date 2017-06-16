@@ -27,17 +27,6 @@ IF (NOT (EXISTS "${PSFLSL_BUILDHELPER_BUILD_X64_DIR}"))
   FILE(MAKE_DIRECTORY "${PSFLSL_BUILDHELPER_BUILD_X64_DIR}")
 ENDIF ()
 
-# removing just the CMakeCache file theoretically leaves
-#   old build byproducts inside the build tree
-# however anomalies resulting from the above are caused build script bugs
-IF (EXISTS "${PSFLSL_BUILDHELPER_BUILD_X32_DIR}/CMakeCache.txt")
-  FILE(REMOVE "${PSFLSL_BUILDHELPER_BUILD_X32_DIR}/CMakeCache.txt")
-ENDIF ()
-IF (EXISTS "${PSFLSL_BUILDHELPER_BUILD_X64_DIR}/CMakeCache.txt")
-  FILE(REMOVE "${PSFLSL_BUILDHELPER_BUILD_X64_DIR}/CMakeCache.txt")
-ENDIF ()
-
-
 SET(PSFLSL_GENERATOR "${CMAKE_GENERATOR}")
 
 IF (NOT (PSFLSL_GENERATOR MATCHES "^Visual Studio"))
@@ -48,25 +37,15 @@ ELSE ()
   STRING(REGEX REPLACE "^(.*) ARM"   "\\1" PSFLSL_GENERATOR "${PSFLSL_GENERATOR}")
 ENDIF ()
 
-IF (CMAKE_GENERATOR_PLATFORM)
-  # Newer CMake versions: CMAKE_GENERATOR_PLATFORM is set to select generator platform.
-  MESSAGE(SEND_ERROR "Platform mechanism not supported (CMAKE_GENERATOR_PLATFORM): "
-    "Select specific generator (cmake -G option) instead.")
-ENDIF ()
-
 MESSAGE("Original Generator (CMAKE_GENERATOR): "  "${CMAKE_GENERATOR}")
 MESSAGE("Computed Generator (PSFLSL_GENERATOR): " "${PSFLSL_GENERATOR}")
-
-SET(PSFLSL_CONFIGURE_OPTS_COMMON
-  -DCMAKE_INSTALL_PREFIX="${CMAKE_INSTALL_PREFIX}"
-)
 
 ADD_CUSTOM_TARGET(Configure_x32
   COMMAND
     "${CMAKE_COMMAND}"
       -G "${PSFLSL_GENERATOR}"
       # -A option omitted for x32
-      "${PSFLSL_CONFIGURE_OPTS_COMMON}"
+      "-DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX}"
       "${PSFLSL_LOGINSERVER_SOURCE_DIR}"
   WORKING_DIRECTORY "${PSFLSL_BUILDHELPER_BUILD_X32_DIR}"
 )
@@ -76,7 +55,7 @@ ADD_CUSTOM_TARGET(Configure_x64
     "${CMAKE_COMMAND}"
       -G "${PSFLSL_GENERATOR}"
       -A "x64"
-      "${PSFLSL_CONFIGURE_OPTS_COMMON}"
+      "-DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX}"
       "${PSFLSL_LOGINSERVER_SOURCE_DIR}"
   WORKING_DIRECTORY "${PSFLSL_BUILDHELPER_BUILD_X64_DIR}"
 )
@@ -101,7 +80,7 @@ ADD_CUSTOM_TARGET(Build_x64
   WORKING_DIRECTORY "${PSFLSL_BUILDHELPER_BUILD_X64_DIR}"
 )
 
-# Maven stuff (Custom Target for manual invocation)
+# Maven stuff (Custom Targets for manual invocation)
 
 SET(PSFLSL_FILE_DIR "${CMAKE_INSTALL_PREFIX}/bin/")
 SET(PSFLSL_FILE_NAME_32 "PSF-LoginServer-Launcher_x32.exe")
