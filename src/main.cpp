@@ -12,9 +12,6 @@ int main(int argc, char **argv)
 {
 	int r = 0;
 
-	enum PsflslBitness BitnessCheckOrder[2] = { psflsl_bitness_current(), psflsl_bitness_other(psflsl_bitness_current()) };
-	enum PsflslBitness BitnessHave = PSFLSL_BITNESS_NONE;
-
 	struct PsflslConfMap *ConfMap = {};
 	struct PsflslAuxConfigCommonVars CommonVars = {};
 
@@ -43,13 +40,15 @@ int main(int argc, char **argv)
 		}
 	}
 	else {
+		enum PsflslBitness BitnessCheckOrder[2] = { psflsl_bitness_current(), psflsl_bitness_other(psflsl_bitness_current()) };
+		enum PsflslBitness BitnessHave = PSFLSL_BITNESS_NONE;
+
 		char JvmDllPathBuf[512] = {};
-		size_t JvmDllPathSize = sizeof JvmDllPathBuf;
 		size_t LenJvmDllPath = 0;
 
 		if (!!(r = psflsl_jvmdll_check(
 			sizeof BitnessCheckOrder / sizeof *BitnessCheckOrder, BitnessCheckOrder,
-			JvmDllPathBuf, JvmDllPathSize, &LenJvmDllPath,
+			JvmDllPathBuf, sizeof JvmDllPathBuf, &LenJvmDllPath,
 			&BitnessHave)))
 		{
 			PSFLSL_GOTO_CLEAN();
@@ -63,7 +62,9 @@ int main(int argc, char **argv)
 			CommonVars.HardCodedClassPathBuf, CommonVars.LenHardCodedClassPath,
 			CommonVars.HardCodedClassPath2Buf, CommonVars.LenHardCodedClassPath2,
 			CommonVars.HardCodedJavaOptsBuf, CommonVars.LenHardCodedJavaOpts,
-			CommonVars.JavaMainClassBuf, CommonVars.LenJavaMainClass)))
+			CommonVars.JavaMainClassBuf, CommonVars.LenJavaMainClass,
+			CommonVars.JavaFallbackJvmDllBuf, CommonVars.LenJavaFallbackJvmDll,
+			CommonVars.JavaFallbackJvmDllPreferOverForkingBuf, CommonVars.LenJavaFallbackJvmDllPreferOverForking)))
 		{
 			PSFLSL_GOTO_CLEAN();
 		}

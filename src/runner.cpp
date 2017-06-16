@@ -380,11 +380,15 @@ int psflsl_runner_run_or_fork(
 	char *HardCodedClassPathBuf, size_t LenHardCodedClassPath,
 	char *HardCodedClassPath2Buf, size_t LenHardCodedClassPath2,
 	char *HardCodedJavaOptsBuf, size_t LenHardCodedJavaOpts,
-	char *JavaMainClassBuf, size_t LenJavaMainClass)
+	char *JavaMainClassBuf, size_t LenJavaMainClass,
+	char *JavaFallbackJvmDllBuf, size_t LenJavaFallbackJvmDll,
+	char *JavaFallbackJvmDllPreferOverForking, size_t LenJavaFallbackJvmDllPreferOverForking)
 {
 	int r = 0;
 
-	if (BitnessCurrent == BitnessHave) {
+	if (BitnessCurrent == BitnessHave)
+	{
+		/* if jvm was found - and is of the correct bitness : just go run it already.. */
 		if (!!(r = psflsl_runner_run(
 			BitnessCurrent,
 			BitnessHave,
@@ -398,7 +402,28 @@ int psflsl_runner_run_or_fork(
 			PSFLSL_GOTO_CLEAN();
 		}
 	}
-	else {
+	else if (BitnessHave == PSFLSL_BITNESS_NONE || LenJavaFallbackJvmDllPreferOverForking)
+	{
+		/* otherwise - (if no jvm was found) or (the bitness was incorrect and we prefer fallback over forking)
+		     : try running with the fallback jvm */
+		// FIXME: assuming fallback jvm is of the correct bitness - maybe check somehow
+		enum PsflslBitness FallbackBitnessHave = BitnessCurrent;
+		if (!!(r = psflsl_runner_run(
+			BitnessCurrent,
+			FallbackBitnessHave,                          /* fallback */
+			JavaFallbackJvmDllBuf, LenJavaFallbackJvmDll, /* fallback */
+			HardCodedPathSeparatorBuf, LenHardCodedPathSeparator,
+			HardCodedClassPathBuf, LenHardCodedClassPath,
+			HardCodedClassPath2Buf, LenHardCodedClassPath2,
+			HardCodedJavaOptsBuf, LenHardCodedJavaOpts,
+			JavaMainClassBuf, LenJavaMainClass)))
+		{
+			PSFLSL_GOTO_CLEAN();
+		}
+	}
+	else
+	{
+		/* otherwise : fork */
 		if (!!(r = psflsl_runner_fork(
 			BitnessCurrent,
 			BitnessHave,

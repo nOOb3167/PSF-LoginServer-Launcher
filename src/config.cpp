@@ -107,9 +107,6 @@ int psflsl_config_char_from_string_alloc(const std::string &String, char **oStrB
 	char *StrBuf = NULL;
 	size_t StrBufSize = 0;
 
-	if (String.size() == 0)
-		PSFLSL_ERR_CLEAN(1);
-
 	/* chars plus null terminator */
 	LenStr = String.size();
 	StrBufSize = LenStr + 1;
@@ -307,7 +304,7 @@ int psflsl_config_key_ex_interpret_relative_current_executable(
 	const confmap_t::const_iterator &it = KeyVal->mMap.find(Key);
 
 	size_t LenPath = 0;
-	char PathBuf[512];
+	char PathBuf[512] = {};
 
 	if (it == KeyVal->mMap.end())
 		return 1;
@@ -315,10 +312,13 @@ int psflsl_config_key_ex_interpret_relative_current_executable(
 	{
 		std::string RawVal = it->second;
 
-		if (!!(psflsl_build_path_interpret_relative_current_executable(
-			RawVal.c_str(), RawVal.size(), PathBuf, sizeof PathBuf, &LenPath)))
-		{
-			return 1;
+		/* NOTE: empty RawVal thus leaves PathBuf empty */
+		if (! RawVal.empty()) {
+			if (!!(psflsl_build_path_interpret_relative_current_executable(
+				RawVal.c_str(), RawVal.size(), PathBuf, sizeof PathBuf, &LenPath)))
+			{
+				return 1;
+			}
 		}
 	}
 
@@ -686,6 +686,8 @@ int psflsl_config_get_common_vars(
 	PSFLSL_CONFIG_COMMON_VAR_STRING_INTERPRET_SUBST_NONUCF(KeyVal, CommonVars, HardCodedClassPath2);
 	PSFLSL_CONFIG_COMMON_VAR_STRING_INTERPRET_SUBST_NONUCF(KeyVal, CommonVars, HardCodedJavaOpts);
 	PSFLSL_CONFIG_COMMON_VAR_STRING_NONUCF(KeyVal, CommonVars, JavaMainClass);
+	PSFLSL_CONFIG_COMMON_VAR_STRING_INTERPRET_RELATIVE_CURRENT_EXECUTABLE_NONUCF(KeyVal, CommonVars, JavaFallbackJvmDll)
+	PSFLSL_CONFIG_COMMON_VAR_STRING_NONUCF(KeyVal, CommonVars, JavaFallbackJvmDllPreferOverForking);
 
 	if (oCommonVars)
 		*oCommonVars = CommonVars;

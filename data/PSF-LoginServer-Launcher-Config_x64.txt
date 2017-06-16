@@ -4,3 +4,5 @@ ConfHardCodedClassPath=../lib
 ConfHardCodedClassPath2=@EXEDIR@../pscrypto-lib/
 ConfHardCodedJavaOpts=-Dprog.home=@EXEDIR@../@SEP@-Djna.debug_load=true
 ConfJavaMainClass=PsLogin
+ConfJavaFallbackJvmDll=../java_bundled/bin/server/jvm.dll
+ConfJavaFallbackJvmDllPreferOverForking=X

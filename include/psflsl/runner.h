@@ -31,6 +31,8 @@ int psflsl_runner_run_or_fork(
 	char *HardCodedClassPathBuf, size_t LenHardCodedClassPath,
 	char *HardCodedClassPath2Buf, size_t LenHardCodedClassPath2,
 	char *HardCodedJavaOptsBuf, size_t LenHardCodedJavaOpts,
-	char *JavaMainClassBuf, size_t LenJavaMainClass);
+	char *JavaMainClassBuf, size_t LenJavaMainClass,
+	char *JavaFallbackJvmDllBuf, size_t LenJavaFallbackJvmDll,
+	char *JavaFallbackJvmDllPreferOverForking, size_t LenJavaFallbackJvmDllPreferOverForking);
 
 #endif /* _PSFLSL_RUNNER_H_ */
