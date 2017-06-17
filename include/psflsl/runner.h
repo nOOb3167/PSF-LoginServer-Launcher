@@ -22,17 +22,13 @@ int psflsl_runner_run(
 	char *HardCodedClassPathBuf, size_t LenHardCodedClassPath,
 	char *HardCodedClassPath2Buf, size_t LenHardCodedClassPath2,
 	char *HardCodedJavaOptsBuf, size_t LenHardCodedJavaOpts,
+	char *JavaDebugOptsBuf, size_t LenJavaDebugOpts,
+	size_t JavaDebugOptsEnabled,
 	char *JavaMainClassBuf, size_t LenJavaMainClass);
 int psflsl_runner_run_or_fork(
 	enum PsflslBitness BitnessCurrent,
 	enum PsflslBitness BitnessHave,
 	char *JvmDllPathBuf, size_t LenJvmDllPath,
-	char *HardCodedPathSeparatorBuf, size_t LenHardCodedPathSeparator,
-	char *HardCodedClassPathBuf, size_t LenHardCodedClassPath,
-	char *HardCodedClassPath2Buf, size_t LenHardCodedClassPath2,
-	char *HardCodedJavaOptsBuf, size_t LenHardCodedJavaOpts,
-	char *JavaMainClassBuf, size_t LenJavaMainClass,
-	char *JavaFallbackJvmDllBuf, size_t LenJavaFallbackJvmDll,
-	char *JavaFallbackJvmDllPreferOverForking, size_t LenJavaFallbackJvmDllPreferOverForking);
+	struct PsflslAuxConfigCommonVars *CommonVars);
 
 #endif /* _PSFLSL_RUNNER_H_ */

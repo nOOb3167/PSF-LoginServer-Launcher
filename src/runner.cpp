@@ -12,6 +12,7 @@
 #include <windows.h>
 
 #include <psflsl/misc.h>
+#include <psflsl/config.h>
 #include <psflsl/filesys.h>
 #include <psflsl/registry.h>
 #include <psflsl/runner.h>
@@ -199,6 +200,8 @@ int psflsl_runner_run(
 	char *HardCodedClassPathBuf, size_t LenHardCodedClassPath,
 	char *HardCodedClassPath2Buf, size_t LenHardCodedClassPath2,
 	char *HardCodedJavaOptsBuf, size_t LenHardCodedJavaOpts,
+	char *JavaDebugOptsBuf, size_t LenJavaDebugOpts,
+	size_t JavaDebugOptsEnabled,
 	char *JavaMainClassBuf, size_t LenJavaMainClass)
 {
 	int r = 0;
@@ -237,6 +240,7 @@ int psflsl_runner_run(
 
 		char StrJavaClassPath[] = "-Djava.class.path=";
 
+		std::string strDebugOpts(JavaDebugOptsBuf, LenJavaDebugOpts);
 		std::string strOpts(HardCodedJavaOptsBuf, LenHardCodedJavaOpts);
 		size_t OffsetOpts = 0;
 
@@ -259,9 +263,23 @@ int psflsl_runner_run(
 		strncat(vmOpts[NumOpts].optionString, HardCodedClassPath2Buf, LenHardCodedClassPath2);
 		NumOpts++;
 
+		/* debug java opts (conditional) */
+
+		for (OffsetOpts = 0; JavaDebugOptsEnabled /*conditional*/ && NumOpts < vmOptsMax && OffsetOpts != std::string::npos; NumOpts++) {
+			size_t OffsetZero = strDebugOpts.find_first_of('\0', OffsetOpts);
+			std::string Opt = strDebugOpts.substr(OffsetOpts, OffsetZero);
+
+			vmOpts[NumOpts].optionString = (char *)malloc(Opt.size() + 1 /*zero*/);
+			vmOpts[NumOpts].extraInfo = NULL;
+			memmove(vmOpts[NumOpts].optionString, Opt.c_str(), Opt.size() + 1);
+
+			OffsetOpts = OffsetZero == std::string::npos ? OffsetZero : OffsetZero + 1;
+		}
+		assert(OffsetOpts == std::string::npos);
+
 		/* generic java opts */
 
-		for (/* dummy */; NumOpts < vmOptsMax && OffsetOpts != std::string::npos; NumOpts++) {
+		for (OffsetOpts = 0; NumOpts < vmOptsMax && OffsetOpts != std::string::npos; NumOpts++) {
 			size_t OffsetZero = strOpts.find_first_of('\0', OffsetOpts);
 			std::string Opt = strOpts.substr(OffsetOpts, OffsetZero);
 
@@ -376,13 +394,7 @@ int psflsl_runner_run_or_fork(
 	enum PsflslBitness BitnessCurrent,
 	enum PsflslBitness BitnessHave,
 	char *JvmDllPathBuf, size_t LenJvmDllPath,
-	char *HardCodedPathSeparatorBuf, size_t LenHardCodedPathSeparator,
-	char *HardCodedClassPathBuf, size_t LenHardCodedClassPath,
-	char *HardCodedClassPath2Buf, size_t LenHardCodedClassPath2,
-	char *HardCodedJavaOptsBuf, size_t LenHardCodedJavaOpts,
-	char *JavaMainClassBuf, size_t LenJavaMainClass,
-	char *JavaFallbackJvmDllBuf, size_t LenJavaFallbackJvmDll,
-	char *JavaFallbackJvmDllPreferOverForking, size_t LenJavaFallbackJvmDllPreferOverForking)
+	struct PsflslAuxConfigCommonVars *CommonVars)
 {
 	int r = 0;
 
@@ -393,16 +405,18 @@ int psflsl_runner_run_or_fork(
 			BitnessCurrent,
 			BitnessHave,
 			JvmDllPathBuf, LenJvmDllPath,
-			HardCodedPathSeparatorBuf, LenHardCodedPathSeparator,
-			HardCodedClassPathBuf, LenHardCodedClassPath,
-			HardCodedClassPath2Buf, LenHardCodedClassPath2,
-			HardCodedJavaOptsBuf, LenHardCodedJavaOpts,
-			JavaMainClassBuf, LenJavaMainClass)))
+			CommonVars->HardCodedPathSeparatorBuf, CommonVars->LenHardCodedPathSeparator,
+			CommonVars->HardCodedClassPathBuf, CommonVars->LenHardCodedClassPath,
+			CommonVars->HardCodedClassPath2Buf, CommonVars->LenHardCodedClassPath2,
+			CommonVars->HardCodedJavaOptsBuf, CommonVars->LenHardCodedJavaOpts,
+			CommonVars->JavaDebugOptsBuf, CommonVars->LenJavaDebugOpts,
+			CommonVars->JavaDebugOptsEnabled,
+			CommonVars->JavaMainClassBuf, CommonVars->LenJavaMainClass)))
 		{
 			PSFLSL_GOTO_CLEAN();
 		}
 	}
-	else if (BitnessHave == PSFLSL_BITNESS_NONE || LenJavaFallbackJvmDllPreferOverForking)
+	else if (BitnessHave == PSFLSL_BITNESS_NONE || CommonVars->LenJavaFallbackJvmDllPreferOverForking)
 	{
 		/* otherwise - (if no jvm was found) or (the bitness was incorrect and we prefer fallback over forking)
 		     : try running with the fallback jvm */
@@ -411,12 +425,14 @@ int psflsl_runner_run_or_fork(
 		if (!!(r = psflsl_runner_run(
 			BitnessCurrent,
 			FallbackBitnessHave,                          /* fallback */
-			JavaFallbackJvmDllBuf, LenJavaFallbackJvmDll, /* fallback */
-			HardCodedPathSeparatorBuf, LenHardCodedPathSeparator,
-			HardCodedClassPathBuf, LenHardCodedClassPath,
-			HardCodedClassPath2Buf, LenHardCodedClassPath2,
-			HardCodedJavaOptsBuf, LenHardCodedJavaOpts,
-			JavaMainClassBuf, LenJavaMainClass)))
+			CommonVars->JavaFallbackJvmDllBuf, CommonVars->LenJavaFallbackJvmDll, /* fallback */
+			CommonVars->HardCodedPathSeparatorBuf, CommonVars->LenHardCodedPathSeparator,
+			CommonVars->HardCodedClassPathBuf, CommonVars->LenHardCodedClassPath,
+			CommonVars->HardCodedClassPath2Buf, CommonVars->LenHardCodedClassPath2,
+			CommonVars->HardCodedJavaOptsBuf, CommonVars->LenHardCodedJavaOpts,
+			CommonVars->JavaDebugOptsBuf, CommonVars->LenJavaDebugOpts,
+			CommonVars->JavaDebugOptsEnabled,
+			CommonVars->JavaMainClassBuf, CommonVars->LenJavaMainClass)))
 		{
 			PSFLSL_GOTO_CLEAN();
 		}

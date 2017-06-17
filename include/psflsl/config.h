@@ -18,6 +18,8 @@ struct PsflslAuxConfigCommonVars
 	char *HardCodedClassPathBuf; size_t LenHardCodedClassPath;
 	char *HardCodedClassPath2Buf; size_t LenHardCodedClassPath2;
 	char *HardCodedJavaOptsBuf; size_t LenHardCodedJavaOpts;
+	char *JavaDebugOptsBuf; size_t LenJavaDebugOpts;
+	size_t JavaDebugOptsEnabled;
 	char *JavaMainClassBuf; size_t LenJavaMainClass;
 	char *JavaFallbackJvmDllBuf; size_t LenJavaFallbackJvmDll;
 	char *JavaFallbackJvmDllPreferOverForkingBuf; size_t LenJavaFallbackJvmDllPreferOverForking;

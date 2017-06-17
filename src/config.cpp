@@ -119,8 +119,6 @@ int psflsl_config_char_from_string_alloc(const std::string &String, char **oStrB
 	if (oLenStr)
 		*oLenStr = LenStr;
 
-clean:
-
 	return r;
 }
 
@@ -685,6 +683,8 @@ int psflsl_config_get_common_vars(
 	PSFLSL_CONFIG_COMMON_VAR_STRING_INTERPRET_JAVA_CLASS_PATH_SPECIAL_NONUCF(KeyVal, CommonVars, HardCodedPathSeparator, HardCodedClassPath);
 	PSFLSL_CONFIG_COMMON_VAR_STRING_INTERPRET_SUBST_NONUCF(KeyVal, CommonVars, HardCodedClassPath2);
 	PSFLSL_CONFIG_COMMON_VAR_STRING_INTERPRET_SUBST_NONUCF(KeyVal, CommonVars, HardCodedJavaOpts);
+	PSFLSL_CONFIG_COMMON_VAR_STRING_INTERPRET_SUBST_NONUCF(KeyVal, CommonVars, JavaDebugOpts);
+	PSFLSL_CONFIG_COMMON_VAR_UINT32_NONUCF(KeyVal, CommonVars, JavaDebugOptsEnabled);
 	PSFLSL_CONFIG_COMMON_VAR_STRING_NONUCF(KeyVal, CommonVars, JavaMainClass);
 	PSFLSL_CONFIG_COMMON_VAR_STRING_INTERPRET_RELATIVE_CURRENT_EXECUTABLE_NONUCF(KeyVal, CommonVars, JavaFallbackJvmDll)
 	PSFLSL_CONFIG_COMMON_VAR_STRING_NONUCF(KeyVal, CommonVars, JavaFallbackJvmDllPreferOverForking);

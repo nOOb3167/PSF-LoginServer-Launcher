@@ -29,11 +29,13 @@ int main(int argc, char **argv)
 		if (!!(r = psflsl_runner_run(
 			psflsl_bitness_current(),
 			psflsl_bitness_current(),
-			argv[2], strlen(argv[2]),
+			argv[2], strlen(argv[2]),  /* jvmdll path from command line */
 			CommonVars.HardCodedPathSeparatorBuf, CommonVars.LenHardCodedPathSeparator,
 			CommonVars.HardCodedClassPathBuf, CommonVars.LenHardCodedClassPath,
 			CommonVars.HardCodedClassPath2Buf, CommonVars.LenHardCodedPathSeparator,
 			CommonVars.HardCodedJavaOptsBuf, CommonVars.LenHardCodedJavaOpts,
+			CommonVars.JavaDebugOptsBuf, CommonVars.LenJavaDebugOpts,
+			CommonVars.JavaDebugOptsEnabled,
 			CommonVars.JavaMainClassBuf, CommonVars.LenJavaMainClass)))
 		{
 			PSFLSL_GOTO_CLEAN();
@@ -58,13 +60,7 @@ int main(int argc, char **argv)
 			psflsl_bitness_current(),
 			BitnessHave,
 			JvmDllPathBuf, LenJvmDllPath,
-			CommonVars.HardCodedPathSeparatorBuf, CommonVars.LenHardCodedPathSeparator,
-			CommonVars.HardCodedClassPathBuf, CommonVars.LenHardCodedClassPath,
-			CommonVars.HardCodedClassPath2Buf, CommonVars.LenHardCodedClassPath2,
-			CommonVars.HardCodedJavaOptsBuf, CommonVars.LenHardCodedJavaOpts,
-			CommonVars.JavaMainClassBuf, CommonVars.LenJavaMainClass,
-			CommonVars.JavaFallbackJvmDllBuf, CommonVars.LenJavaFallbackJvmDll,
-			CommonVars.JavaFallbackJvmDllPreferOverForkingBuf, CommonVars.LenJavaFallbackJvmDllPreferOverForking)))
+			&CommonVars)))
 		{
 			PSFLSL_GOTO_CLEAN();
 		}
