@@ -13,7 +13,7 @@ GET_FILENAME_COMPONENT(PSFLSL_LOGINSERVER_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR
 
 SET(PSFLSL_MAVEN_COMMAND "mvn" CACHE FILEPATH "Maven Command (Used when invoking the Maven-specific targets)")
 
-SET(PSFLSL_DEPLOY_URL "ftp://10.55.1.6/home/ftpuser1/repo" CACHE STRING "(Used when invoking the Maven-specific targets)")
+SET(PSFLSL_DEPLOY_URL "ftp://kazimir1.ddns.net/home/ftpuser1/repo" CACHE STRING "(Used when invoking the Maven-specific targets)")
 
 SET(PSFLSL_BUILDHELPER_BUILD_X32_DIR "${PSFLSL_LOGINSERVER_SOURCE_DIR}/cmake/Build_x32/" CACHE PATH "Build directory (x32)")
 SET(PSFLSL_BUILDHELPER_BUILD_X64_DIR "${PSFLSL_LOGINSERVER_SOURCE_DIR}/cmake/Build_x64/" CACHE PATH "Build directory (x64)")
