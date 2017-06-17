@@ -6,6 +6,11 @@ IF (NOT DEFINED CMAKE_INSTALL_PREFIX OR
   MESSAGE(FATAL_ERROR "May have been invoked without setting the necessary variables")
 ENDIF ()
 
+# Name of the file being installed into the maven repository, sans extension (eg. exe),
+# is used as the Maven artifactId.
+# This artifactId (together with groupId and version) can be used in a <dependency>
+# element withing a Maven pom.xml file.
+
 GET_FILENAME_COMPONENT(PSFLSL_ARTIFACTID_32 "${PSFLSL_FILE_NAME_32}" NAME_WE)
 GET_FILENAME_COMPONENT(PSFLSL_ARTIFACTID_64 "${PSFLSL_FILE_NAME_64}" NAME_WE)
 

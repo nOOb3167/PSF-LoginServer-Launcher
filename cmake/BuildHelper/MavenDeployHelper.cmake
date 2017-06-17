@@ -4,7 +4,7 @@ IF (NOT DEFINED CMAKE_INSTALL_PREFIX OR
     NOT DEFINED PSFLSL_FILE_NAME_32  OR
     NOT DEFINED PSFLSL_FILE_NAME_64  OR
     NOT DEFINED PSFLSL_MAVEN_DEPLOY_HELPER_POM_PATH OR
-    NOT DEFINED PSFLSL_DEPLOY_URL)
+    NOT DEFINED PSFLSL_MAVEN_DEPLOY_URL)
   MESSAGE(FATAL_ERROR "May have been invoked without setting the necessary variables")
 ENDIF ()
 
@@ -33,7 +33,7 @@ EXECUTE_PROCESS(
     "org.apache.maven.plugins:maven-deploy-plugin:2.8.2:deploy-file"
     "-Dfile=${PSFLSL_FILE_32}"
     "-DrepositoryId=psforever-launcher-ftp-repository" # see (1) - matches with user settings.xml
-    "-Durl=${PSFLSL_DEPLOY_URL}"
+    "-Durl=${PSFLSL_MAVEN_DEPLOY_URL}"
     "-DgroupId=net.psforever.launcher"
     "-DartifactId=${PSFLSL_ARTIFACTID_32}"
     "-Dversion=NOVERSION"
@@ -53,7 +53,7 @@ EXECUTE_PROCESS(
     "org.apache.maven.plugins:maven-deploy-plugin:2.8.2:deploy-file"
     "-Dfile=${PSFLSL_FILE_64}"
     "-DrepositoryId=psforever-launcher-ftp-repository" # see (1) - matches with user settings.xml
-    "-Durl=${PSFLSL_DEPLOY_URL}"
+    "-Durl=${PSFLSL_MAVEN_DEPLOY_URL}"
     "-DgroupId=net.psforever.launcher"
     "-DartifactId=${PSFLSL_ARTIFACTID_64}"
     "-Dversion=NOVERSION"
