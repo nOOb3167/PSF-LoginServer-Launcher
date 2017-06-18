@@ -1,10 +1,15 @@
-IF (NOT DEFINED CMAKE_INSTALL_PREFIX OR
-    NOT DEFINED PSFLSL_MAVEN_COMMAND OR
-    NOT DEFINED PSFLSL_FILE_DIR      OR
-    NOT DEFINED PSFLSL_FILE_NAME_32  OR
+IF (NOT DEFINED CMAKE_INSTALL_PREFIX          OR
+    NOT DEFINED PSFLSL_VERSION_INCLUDE_FILE   OR
+    NOT DEFINED PSFLSL_MAVEN_COMMAND          OR
+    NOT DEFINED PSFLSL_MAVEN_ARTIFACT_VERSION OR
+    NOT DEFINED PSFLSL_FILE_DIR               OR
+    NOT DEFINED PSFLSL_FILE_NAME_32           OR
     NOT DEFINED PSFLSL_FILE_NAME_64)
   MESSAGE(FATAL_ERROR "May have been invoked without setting the necessary variables")
 ENDIF ()
+
+INCLUDE("${PSFLSL_VERSION_INCLUDE_FILE}")
+PSFLSL_VERSION_PROCESS("${PSFLSL_MAVEN_ARTIFACT_VERSION}" PSFLSL_MAVEN_ARTIFACT_VERSION_COMPUTED)
 
 # Name of the file being installed into the maven repository, sans extension (eg. exe),
 # is used as the Maven artifactId.
@@ -29,7 +34,7 @@ EXECUTE_PROCESS(
     "-Dfile=${PSFLSL_FILE_32}"
     "-DgroupId=net.psforever.launcher"
     "-DartifactId=${PSFLSL_ARTIFACTID_32}"
-    "-Dversion=NOVERSION"
+    "-Dversion=${PSFLSL_MAVEN_ARTIFACT_VERSION_COMPUTED}"
     "-Dpackaging=exe"
   RESULT_VARIABLE
     TMP_RETCODE1
@@ -46,7 +51,7 @@ EXECUTE_PROCESS(
     "-Dfile=${PSFLSL_FILE_64}"
     "-DgroupId=net.psforever.launcher"
     "-DartifactId=${PSFLSL_ARTIFACTID_64}"
-    "-Dversion=NOVERSION"
+    "-Dversion=${PSFLSL_MAVEN_ARTIFACT_VERSION_COMPUTED}"
     "-Dpackaging=exe"
   RESULT_VARIABLE
     TMP_RETCODE2
@@ -69,5 +74,5 @@ IF (NOT ("${TMP_RETCODE1}" STREQUAL "0") OR
   MESSAGE("Error Code: ${TMP_RETCODE1},${TMP_RETCODE2}")
   MESSAGE(FATAL_ERROR "Error Invoking Maven")
 ELSE ()
-  MESSAGE("Deploy Succeeded")
+  MESSAGE("Maven Install Succeeded")
 ENDIF ()

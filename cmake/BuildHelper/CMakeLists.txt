@@ -30,6 +30,16 @@
 #                                   cmake/BuildHelper/ directory within the LoginServer source tree.
 #   PSFLSL_MAVEN_COMMAND          - Maven executable to invoke. Defaults to 'mvn', which should work if Maven was
 #                                   put on the system PATH. Otherwise set to the full path.
+#   PSFLSL_MAVEN_ARTIFACT_VERSION - Defaults to empty string (""). See cmake/Modules/PsflslVersion.cmake for PSFLSL_VERSION.
+#                                   When defaulted, the version used will be the result of suffixing PSFLSL_VERSION with '-SNAPSHOT'.
+#                                   When not defaulted, the version used will be the value of this variable directly,
+#                                     EXCEPT any '@VER@' becoming replaced by PSFLSL_VERSION.
+#                                   Summary: Not specifying version 'marks' it with '-SNAPSHOT'.
+#                                            Otherwise '@VER@' patterns can help building version.
+#                                   Warning: Please be careful to not Deploy a Launcher multiple times under
+#                                            the same version (Use the '-SNAPSHOT' versions for that use case).
+#                                            Deployments are meant to be consumed by further builds and multiple
+#                                            different Launchers with the same version could be hard to diagnose.
 #   PSFLSL_MAVEN_DEPLOY_URL       - FTP URL for Deployment.
 #
 # Example directory structure at CMAKE_INSTALL_PREFIX, after the install target has been built:
@@ -48,7 +58,7 @@ CMAKE_MINIMUM_REQUIRED(VERSION 3.2)
 
 PROJECT (PSFLSL-LoginServer-Launcher-BuildHelper
   LANGUAGES NONE)
-
+  
 GET_FILENAME_COMPONENT(PSFLSL_LOGINSERVER_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../" ABSOLUTE CACHE)
 
 SET(PSFLSL_BUILDHELPER_BUILD_X32_DIR "${PSFLSL_LOGINSERVER_SOURCE_DIR}/cmake/Build_x32/" CACHE PATH "Build directory (x32)")
@@ -57,6 +67,7 @@ SET(PSFLSL_BUILDHELPER_BUILD_X64_DIR "${PSFLSL_LOGINSERVER_SOURCE_DIR}/cmake/Bui
 SET(PSFLSL_GENERATOR "${CMAKE_GENERATOR}" CACHE STRING "(Generator (Visual Studio) - Will be stripped of any platform suffix)")
 
 SET(PSFLSL_MAVEN_COMMAND "mvn" CACHE FILEPATH "Maven Command (Used when invoking the Maven-specific targets)")
+SET(PSFLSL_MAVEN_ARTIFACT_VERSION "" CACHE STRING "Maven Install/Deploy Artifact Version (Used when invoking the Maven-specific targets)")
 SET(PSFLSL_MAVEN_DEPLOY_URL "ftp://kazimir1.ddns.net/home/ftpuser1/repo" CACHE STRING "(Used when invoking the Maven-specific targets)")
 
 IF (PSFLSL_GENERATOR MATCHES "^Visual Studio")

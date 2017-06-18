@@ -1,12 +1,22 @@
-IF (NOT DEFINED CMAKE_INSTALL_PREFIX OR
-    NOT DEFINED PSFLSL_MAVEN_COMMAND OR
-    NOT DEFINED PSFLSL_FILE_DIR      OR
-    NOT DEFINED PSFLSL_FILE_NAME_32  OR
-    NOT DEFINED PSFLSL_FILE_NAME_64  OR
+IF (NOT DEFINED CMAKE_INSTALL_PREFIX          OR
+    NOT DEFINED PSFLSL_VERSION_INCLUDE_FILE   OR
+    NOT DEFINED PSFLSL_MAVEN_COMMAND          OR
+    NOT DEFINED PSFLSL_MAVEN_ARTIFACT_VERSION OR
+    NOT DEFINED PSFLSL_MAVEN_DEPLOY_URL       OR
     NOT DEFINED PSFLSL_MAVEN_DEPLOY_HELPER_POM_PATH OR
-    NOT DEFINED PSFLSL_MAVEN_DEPLOY_URL)
+    NOT DEFINED PSFLSL_FILE_DIR               OR
+    NOT DEFINED PSFLSL_FILE_NAME_32           OR
+    NOT DEFINED PSFLSL_FILE_NAME_64)
   MESSAGE(FATAL_ERROR "May have been invoked without setting the necessary variables")
 ENDIF ()
+
+INCLUDE("${PSFLSL_VERSION_INCLUDE_FILE}")
+PSFLSL_VERSION_PROCESS("${PSFLSL_MAVEN_ARTIFACT_VERSION}" PSFLSL_MAVEN_ARTIFACT_VERSION_COMPUTED)
+
+# Name of the file being installed into the maven repository, sans extension (eg. exe),
+# is used as the Maven artifactId.
+# This artifactId (together with groupId and version) can be used in a <dependency>
+# element withing a Maven pom.xml file.
 
 GET_FILENAME_COMPONENT(PSFLSL_ARTIFACTID_32 "${PSFLSL_FILE_NAME_32}" NAME_WE)
 GET_FILENAME_COMPONENT(PSFLSL_ARTIFACTID_64 "${PSFLSL_FILE_NAME_64}" NAME_WE)
@@ -36,7 +46,7 @@ EXECUTE_PROCESS(
     "-Durl=${PSFLSL_MAVEN_DEPLOY_URL}"
     "-DgroupId=net.psforever.launcher"
     "-DartifactId=${PSFLSL_ARTIFACTID_32}"
-    "-Dversion=NOVERSION"
+    "-Dversion=${PSFLSL_MAVEN_ARTIFACT_VERSION_COMPUTED}"
     "-Dpackaging=exe"
   RESULT_VARIABLE
     TMP_RETCODE1
@@ -56,7 +66,7 @@ EXECUTE_PROCESS(
     "-Durl=${PSFLSL_MAVEN_DEPLOY_URL}"
     "-DgroupId=net.psforever.launcher"
     "-DartifactId=${PSFLSL_ARTIFACTID_64}"
-    "-Dversion=NOVERSION"
+    "-Dversion=${PSFLSL_MAVEN_ARTIFACT_VERSION_COMPUTED}"
     "-Dpackaging=exe"
   RESULT_VARIABLE
     TMP_RETCODE2
@@ -79,5 +89,5 @@ IF (NOT ("${TMP_RETCODE1}" STREQUAL "0") OR
   MESSAGE("Error Code: ${TMP_RETCODE1},${TMP_RETCODE2}")
   MESSAGE(FATAL_ERROR "Error Invoking Maven")
 ELSE ()
-  MESSAGE("Deploy Succeeded")
+  MESSAGE("Maven Deploy Succeeded")
 ENDIF ()
