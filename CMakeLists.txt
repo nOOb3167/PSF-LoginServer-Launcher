@@ -1,3 +1,26 @@
+# This CMakeLists.txt builds the Launcher executable.
+# To build the 'full' distribution as designed, see BuildHelper (cmake/BuildHelper/CMakeLists.txt).
+#
+# The following variables can be customized:
+#   CMAKE_INSTALL_PREFIX - Install location.
+#   PSFLSL_DISABLE_CONFIG_GENERATION - ON/OFF - Use a pre-generated (empty) config, instead of generating,
+#                                               from the config templates within data/.
+#   PSFLSL_ARCH_BITNESS - 32 or 64 - Normally autodetected. Whether a 32-bit or 64-bit executable is being built.
+#                                    Influences selection of the config template. Bitness is also built into the
+#                                    executable filename.
+#   PSFLSL_JNI_HEADER_INCLUDE_DIR - Normally autodetect and use the JNI headers bundled within data/jni_external/.
+#                                   Launcher operates by dynamically loading the JVM library (jvm.dll), from an
+#                                   existing Java installation already present on the user computer.
+#                                   Let us say we compile with JNI headers of Java version X.
+#                                   Obviously the JVM library on another computer running the Launcher may be different.
+#                                   Therefore the JNI headers MUST have already been designed for binary compatibility
+#                                   accross different Java versions in mind. Thus we can bundle some arbitrary version.
+#   PSFLSL_JNI_MD_HEADER_INCLUDE_DIR - See comment for PSFLSL_JNI_HEADER_INCLUDE_DIR.
+#
+# Example directory structure at CMAKE_INSTALL_PREFIX, after the install target has been built:
+#   ${CMAKE_INSTALL_PREFIX}/bin/PSF-LoginServer-Launcher_x32.exe  - Launcher executable (32-bit)
+#   ${CMAKE_INSTALL_PREFIX}/bin/PSF-LoginServer-Launcher_x32.pdb  - (Visual Studio debug file)
+
 CMAKE_MINIMUM_REQUIRED(VERSION 2.4)
 
 PROJECT (PSF-LoginServer-Launcher)
